@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
+// App Router에서 Vercel 함수 타임아웃 설정 (초) — Hobby: 최대 60, Pro: 최대 300
+export const maxDuration = 60
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -224,28 +227,39 @@ ${text.slice(0, 12000)}`,
   return analyzeExtracted(extracted, userInfo)
 }
 
+// ── JSON 에러 응답 헬퍼 ───────────────────────────────────
+function errJson(message: string, status: number) {
+  return new NextResponse(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 // ── Main Handler ──────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkRateLimit(ip))
-    return NextResponse.json({ error: '요청 한도 초과. 1시간 후 재시도하세요.' }, { status: 429 })
-  if (!process.env.ANTHROPIC_API_KEY)
-    return NextResponse.json({ error: '서버 설정 오류: API 키 없음' }, { status: 500 })
-
-  let body: {
-    text?: string
-    fileNames: string[]
-    images?: { data: string; mediaType: string }[]
-    pdfs?: { data: string; name: string }[]
-    userInfo?: UserInfo
-  }
+  // 모든 에러를 JSON으로 감싸는 최상위 try-catch
   try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: '잘못된 요청 형식' }, { status: 400 })
-  }
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    if (!checkRateLimit(ip))
+      return errJson('요청 한도 초과. 1시간 후 재시도하세요.', 429)
+    if (!process.env.ANTHROPIC_API_KEY)
+      return errJson('서버 설정 오류: API 키 없음', 500)
 
-  try {
+    let body: {
+      text?: string
+      fileNames: string[]
+      images?: { data: string; mediaType: string }[]
+      pdfs?: { data: string; name: string }[]
+      userInfo?: UserInfo
+    }
+    try {
+      body = await req.json()
+    } catch {
+      return errJson('잘못된 요청 형식 (JSON 파싱 실패)', 400)
+    }
+
+    if (!body.fileNames) return errJson('fileNames 필드가 없습니다.', 400)
+
     let result
     if (body.pdfs && body.pdfs.length > 0) {
       result = await analyzeWithPDF(body.pdfs, body.userInfo)
@@ -254,12 +268,23 @@ export async function POST(req: NextRequest) {
     } else if (body.text && body.text.trim()) {
       result = await analyzeWithText(body.text, body.fileNames, body.userInfo)
     } else {
-      return NextResponse.json({ error: '분석할 문서가 없습니다.' }, { status: 400 })
+      return errJson('분석할 문서가 없습니다.', 400)
     }
+
     return NextResponse.json(result)
+
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : '알 수 없는 오류'
-    console.error('분석 오류:', msg)
-    return NextResponse.json({ error: `AI 분석 오류: ${msg}` }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[analyze] 오류:', msg)
+
+    // Anthropic API 에러 구분
+    if (msg.includes('timeout') || msg.includes('ETIMEDOUT'))
+      return errJson('AI 분석 시간 초과. 파일 크기를 줄이거나 다시 시도하세요.', 504)
+    if (msg.includes('rate_limit') || msg.includes('429'))
+      return errJson('AI API 요청 한도 초과. 잠시 후 다시 시도하세요.', 429)
+    if (msg.includes('invalid_api_key') || msg.includes('401'))
+      return errJson('API 키 오류. 서버 설정을 확인하세요.', 500)
+
+    return errJson(`AI 분석 오류: ${msg}`, 500)
   }
 }
