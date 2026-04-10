@@ -1,10 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: '보험 중복보장 분석기 | insure.dbzone.kr',
@@ -18,10 +14,13 @@ export const metadata: Metadata = {
 }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={cn("font-sans", geist.variable)}>
+    <html lang="ko">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
       </head>
-      <body style={{ ma
+      <body style={{ margin: 0, padding: 0 }}><TooltipProvider>{children}</TooltipProvider></body>
+    </html>
+  )
+}
