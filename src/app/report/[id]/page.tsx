@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 
+const severityStyle = (s: string) => {
+  if (s === '높음') return 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+  if (s === '중간') return 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+  return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+}
+
 interface Duplicate {
   item: string; policies: string; coverageA: string; coverageB: string
   type: string; monthlySavings: string; severity: string; action: string
@@ -42,6 +48,7 @@ export default function ReportPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [modalItem, setModalItem] = useState<Duplicate | null>(null)
 
   useEffect(() => {
     fetch(`/api/report/${id}`)
@@ -97,102 +104,6 @@ export default function ReportPage() {
     a.click()
   }
 
-  const exportPdf = () => {
-    if (!analysis) return
-    const result = analysis.result
-    const summary = result?.summary
-    const duplicates = result?.duplicates || []
-    const date = formatDate(analysis.createdAt)
-    const sevClass = (s: string) => s === '높음' ? 'badge-high' : s === '중간' ? 'badge-mid' : 'badge-low'
-    const dupRows = duplicates.length === 0
-      ? `<tr><td colspan="6" style="text-align:center;color:#888;padding:8mm 0">중복 보장 항목이 발견되지 않았습니다</td></tr>`
-      : duplicates.map(d => `
-        <tr>
-          <td><strong>${d.item}</strong><br/><span style="color:#888;font-size:8pt">${d.action}</span></td>
-          <td>${d.policies}</td>
-          <td><span class="cov-a">A: ${d.coverageA}</span><br/><span class="cov-b">B: ${d.coverageB}</span></td>
-          <td>${d.type}</td>
-          <td style="color:#92400e;font-weight:500">${d.monthlySavings}</td>
-          <td><span class="badge ${sevClass(d.severity)}">${d.severity}</span></td>
-        </tr>`).join('')
-
-    const infoRows = [
-      analysis.gender ? `<span>성별: <strong>${analysis.gender}</strong></span>` : '',
-      analysis.age ? `<span>연령: <strong>${analysis.age}</strong></span>` : '',
-      analysis.job ? `<span>직업: <strong>${analysis.job}</strong></span>` : '',
-      analysis.health ? `<span>건강: <strong>${analysis.health}</strong></span>` : '',
-      analysis.budget ? `<span>예산: <strong>${analysis.budget}</strong></span>` : '',
-      analysis.purpose ? `<span>목적: <strong>${analysis.purpose}</strong></span>` : '',
-    ].filter(Boolean).join(' &nbsp;|&nbsp; ')
-
-    const html = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<title>${analysis.title || '보험 중복 분석 보고서'}</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Noto Sans KR',sans-serif;background:#fff;color:#1a1a1a;padding:18mm 20mm;font-size:10.5pt;line-height:1.6}
-  .title-row{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #c4974a;padding-bottom:3mm;margin-bottom:4mm}
-  .title-row h1{font-size:17pt;font-weight:700;color:#1a1a1a}
-  .title-row .meta{font-size:8.5pt;color:#888;text-align:right;line-height:1.8}
-  .info-row{font-size:9pt;color:#555;margin-bottom:5mm;padding:2.5mm 4mm;background:#fdf8f0;border-radius:5px;border:1px solid #e8d8b0}
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:6mm}
-  .card{border:1px solid #e0d8c8;border-radius:6px;padding:3.5mm 4mm;text-align:center}
-  .card .val{font-size:16pt;font-weight:700;color:#1a1a1a}
-  .card .val.red{color:#b91c1c}.card .val.amber{color:#92400e}.card .val.risk-high{color:#b91c1c}.card .val.risk-mid{color:#92400e}.card .val.risk-low{color:#166534}
-  .card .lbl{font-size:8pt;color:#888;margin-top:1mm}
-  .section-title{font-size:9pt;font-weight:600;color:#7a5c2e;letter-spacing:0.08em;margin-bottom:2.5mm;margin-top:5mm}
-  .ai-box{background:#fdf8f0;border:1px solid #e8d8b0;border-left:3px solid #c4974a;border-radius:6px;padding:4mm 5mm;font-size:9.5pt;line-height:1.8;color:#444;margin-bottom:5mm;white-space:pre-wrap}
-  table{width:100%;border-collapse:collapse;margin-bottom:5mm;font-size:8.5pt}
-  th{background:#f5f2ec;border:1px solid #e0d8c8;padding:2mm 3mm;text-align:left;font-weight:600;color:#555;white-space:nowrap}
-  td{border:1px solid #e0d8c8;padding:2.5mm 3mm;vertical-align:top;color:#333}
-  tr:nth-child(even) td{background:#fafaf8}
-  .badge{display:inline-block;padding:0.5mm 2.5mm;border-radius:3px;font-size:8pt;font-weight:500}
-  .badge-high{background:#fee2e2;color:#991b1b}.badge-mid{background:#fef3c7;color:#92400e}.badge-low{background:#d1fae5;color:#065f46}
-  .cov-a{color:#7a5c2e;display:block}.cov-b{color:#666;display:block}
-  .rec-box{background:#fdf8f0;border:1px solid #e8d8b0;border-left:3px solid #c4974a;border-radius:6px;padding:4mm 5mm;font-size:9.5pt;line-height:1.9;color:#444;margin-bottom:4mm;white-space:pre-wrap}
-  .disc{font-size:8pt;color:#999;border:1px solid #eee;border-radius:5px;padding:3mm 4mm}
-  @media print{body{padding:12mm 14mm}@page{margin:10mm}}
-</style>
-</head>
-<body>
-<div class="title-row">
-  <h1>${analysis.title || '보험 중복 보장 분석 보고서'}</h1>
-  <div class="meta">분석 일시: ${date}<br/>파일: ${analysis.fileNames || ''}</div>
-</div>
-
-${infoRows ? `<div class="info-row">${infoRows}</div>` : ''}
-
-${summary ? `
-<div class="cards">
-  <div class="card"><div class="val red">${summary.duplicateCount}</div><div class="lbl">중복 보장 항목</div></div>
-  <div class="card"><div class="val">${summary.totalPolicies}</div><div class="lbl">분석 보험 수</div></div>
-  <div class="card"><div class="val amber">${summary.estimatedMonthlySavings}</div><div class="lbl">절감 예상액</div></div>
-  <div class="card"><div class="val risk-${summary.riskLevel === '높음' ? 'high' : summary.riskLevel === '중간' ? 'mid' : 'low'}">${summary.riskLevel}</div><div class="lbl">중복 위험도</div></div>
-</div>` : ''}
-
-${result?.aiSummary ? `<div class="section-title">⬡ AI 분석 요약</div><div class="ai-box">${result.aiSummary}</div>` : ''}
-
-<div class="section-title">중복 보장 상세 목록</div>
-<table>
-  <thead><tr><th>중복 항목</th><th>해당 보험</th><th>보장 내용 비교</th><th>중복 유형</th><th>절감 예상</th><th>심각도</th></tr></thead>
-  <tbody>${dupRows}</tbody>
-</table>
-
-${result?.recommendation ? `<div class="section-title">AI 권고사항</div><div class="rec-box">${result.recommendation}</div>` : ''}
-${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
-
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 500))</script>
-</body>
-</html>`
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
-  }
 
   if (loading) return (
     <main className="min-h-screen bg-[#2c2a29] flex items-center justify-center">
@@ -233,7 +144,7 @@ ${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
               className="px-4 py-1.5 bg-transparent border border-[#d4b483]/30 rounded-lg text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer">
               📄 TXT 저장
             </button>
-            <button onClick={exportPdf}
+            <button onClick={() => window.print()}
               className="px-4 py-1.5 bg-transparent border border-[#d4b483]/30 rounded-lg text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer">
               📑 PDF 저장
             </button>
@@ -292,11 +203,16 @@ ${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
                     <th className="text-left py-2 px-3 text-[#d4b483] font-medium">보장금액</th>
                     <th className="text-left py-2 px-3 text-[#d4b483] font-medium">유형</th>
                     <th className="text-left py-2 px-3 text-[#d4b483] font-medium">절약가능</th>
+                    <th className="text-left py-2 px-3 text-[#d4b483] font-medium">심각도</th>
                   </tr>
                 </thead>
                 <tbody>
                   {duplicates.map((d, i) => (
-                    <tr key={i} className="border-b border-[#d4b483]/08">
+                    <tr
+                      key={i}
+                      className="border-b border-[#d4b483]/08 cursor-pointer hover:bg-white/[0.03] transition-colors"
+                      onClick={() => setModalItem(d)}
+                    >
                       <td className="py-2.5 px-3">
                         <div className="font-medium text-[#f0ebe0]">{d.item}</div>
                         <div className="text-[10px] text-[#6a6050] mt-0.5">{d.action}</div>
@@ -308,6 +224,11 @@ ${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
                       </td>
                       <td className="py-2.5 px-3 text-[#c4b49a]">{d.type}</td>
                       <td className="py-2.5 px-3 text-amber-400 font-medium">{d.monthlySavings}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-md ${severityStyle(d.severity)}`}>
+                          {d.severity}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -315,6 +236,39 @@ ${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
             </div>
           </div>
         )}
+
+        {/* 절감 금액 차트 */}
+        {duplicates.some(d => d.monthlySavings && d.monthlySavings !== '-') && (() => {
+          const parseAmount = (s: string) => {
+            const m = s.match(/[\d.]+/)
+            return m ? parseFloat(m[0]) : 0
+          }
+          const chartData = duplicates
+            .map(d => ({ label: d.item, value: parseAmount(d.monthlySavings), raw: d.monthlySavings }))
+            .filter(d => d.value > 0)
+          const maxVal = Math.max(...chartData.map(d => d.value), 1)
+          return chartData.length > 0 ? (
+            <div className="mb-6">
+              <h2 className="text-sm font-medium text-[#d4b483] mb-3 pb-2 border-b border-[#d4b483]/15">보험별 절감 예상액</h2>
+              <div className="bg-white/[0.03] border border-[#d4b483]/15 rounded-xl p-4 space-y-3">
+                {chartData.map((d, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-[#c4b49a] truncate max-w-[60%]">{d.label}</span>
+                      <span className="text-amber-400 font-medium">{d.raw}</span>
+                    </div>
+                    <div className="print-bar-bg w-full bg-white/[0.05] rounded-full h-2">
+                      <div
+                        className="print-bar-fill bg-gradient-to-r from-amber-500 to-amber-400 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${(d.value / maxVal) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null
+        })()}
 
         {/* AI 요약 */}
         {result?.aiSummary && (
@@ -350,6 +304,68 @@ ${result?.disclaimer ? `<div class="disc">${result.disclaimer}</div>` : ''}
           <Link href="/dashboard" className="text-xs text-[#d4b483] hover:underline">← 분석 내역으로</Link>
         </div>
       </div>
+
+      {/* 중복 항목 상세 모달 */}
+      {modalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: 'rgba(0,0,0,0.65)' }}
+          onClick={() => setModalItem(null)}
+        >
+          <div
+            className="w-full max-w-md bg-[#1e1c1a] border border-[#d4b483]/25 rounded-2xl p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-semibold text-[#f0ebe0]">{modalItem.item}</h3>
+                <p className="text-xs text-[#7a7060] mt-0.5">{modalItem.type}</p>
+              </div>
+              <span className={`text-[11px] font-medium px-2.5 py-1 rounded-lg ${severityStyle(modalItem.severity)}`}>
+                {modalItem.severity}
+              </span>
+            </div>
+
+            {/* 보험사 비교 */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                <div className="text-[10px] text-blue-400 font-medium mb-1">보험 A</div>
+                <div className="text-xs text-[#c4b49a] leading-relaxed">{modalItem.coverageA}</div>
+              </div>
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
+                <div className="text-[10px] text-orange-400 font-medium mb-1">보험 B</div>
+                <div className="text-xs text-[#c4b49a] leading-relaxed">{modalItem.coverageB}</div>
+              </div>
+            </div>
+
+            {/* 해당 보험 + 절약 */}
+            <div className="flex items-center justify-between bg-white/[0.03] border border-[#d4b483]/15 rounded-xl px-4 py-3 mb-4">
+              <div>
+                <div className="text-[10px] text-[#7a7060]">해당 보험</div>
+                <div className="text-sm text-[#c4b49a]">{modalItem.policies}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-[#7a7060]">월 절약 가능</div>
+                <div className="text-sm font-semibold text-amber-400">{modalItem.monthlySavings}</div>
+              </div>
+            </div>
+
+            {/* 권고 조치 */}
+            <div className="bg-[#d4b483]/[0.06] border border-[#d4b483]/20 rounded-xl px-4 py-3 mb-5">
+              <div className="text-[10px] text-[#d4b483] font-medium mb-1">권고 조치</div>
+              <p className="text-xs text-[#c4b49a] leading-relaxed">{modalItem.action}</p>
+            </div>
+
+            <button
+              onClick={() => setModalItem(null)}
+              className="w-full py-2.5 border border-[#d4b483]/30 rounded-xl text-[#d4b483] text-sm hover:bg-[#d4b483]/10 transition-colors cursor-pointer"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

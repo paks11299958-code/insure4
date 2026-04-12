@@ -28,15 +28,36 @@ interface Analysis {
   createdAt: string
 }
 
-const riskColor = (level: string) => {
-  if (level === '높음') return 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-  if (level === '중간') return 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-  return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+const riskStyle = (level: string) => {
+  if (level === '높음') return {
+    badge: 'bg-rose-500/15 border-rose-500/40 text-rose-400',
+    dot: 'bg-rose-400',
+    glow: 'shadow-rose-500/10',
+    border: 'hover:border-rose-500/30',
+  }
+  if (level === '중간') return {
+    badge: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+    dot: 'bg-amber-400',
+    glow: 'shadow-amber-500/10',
+    border: 'hover:border-amber-500/30',
+  }
+  return {
+    badge: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
+    dot: 'bg-emerald-400',
+    glow: 'shadow-emerald-500/10',
+    border: 'hover:border-emerald-500/30',
+  }
 }
 
 const formatDate = (iso: string) => {
   const d = new Date(iso)
   return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+const truncateFiles = (names: string) => {
+  const list = names.split(',').map(s => s.trim())
+  if (list.length <= 2) return names
+  return `${list[0]}, ${list[1]} 외 ${list.length - 2}개`
 }
 
 export default function DashboardPage() {
@@ -82,7 +103,7 @@ export default function DashboardPage() {
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-medium text-[#f0ebe0]">분석 내역</h1>
+            <h1 className="text-xl font-semibold text-[#f0ebe0]">분석 내역</h1>
             <p className="text-xs text-[#7a7060] mt-0.5">{authUser?.username || authUser?.email}님의 보험 분석 기록</p>
           </div>
           <div className="flex items-center gap-3">
@@ -102,10 +123,8 @@ export default function DashboardPage() {
               className="w-full bg-white/[0.04] border border-[#d4b483]/20 rounded-xl px-4 py-2.5 text-sm text-[#c4b49a] placeholder:text-[#6a6050] outline-none focus:border-[#d4b483]/50 transition-colors"
             />
             {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6050] hover:text-[#c4b49a] text-lg leading-none cursor-pointer"
-              >×</button>
+              <button onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6050] hover:text-[#c4b49a] text-lg leading-none cursor-pointer">×</button>
             )}
           </div>
         )}
@@ -124,84 +143,103 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-3">
             {filtered.map(a => {
               const summary = a.result?.summary
+              const rs = summary ? riskStyle(summary.riskLevel) : null
+
               return (
-                <button
+                <div
                   key={a.id}
-                  onClick={() => setSelected(selected?.id === a.id ? null : a)}
-                  className="w-full text-left bg-white/[0.03] border border-[#d4b483]/15 hover:border-[#d4b483]/35 rounded-2xl p-4 transition-all cursor-pointer"
+                  className={`bg-[#1e1c1a] border border-[#d4b483]/15 ${rs?.border ?? 'hover:border-[#d4b483]/35'} rounded-2xl overflow-hidden transition-all duration-200 shadow-lg ${rs?.glow ?? ''} hover:shadow-[#d4b483]/10 hover:-translate-y-px`}
+                  style={{ boxShadow: '0 0 0 1px rgba(212,180,131,0.08), 0 4px 20px rgba(0,0,0,0.3)' }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-[#f0ebe0] truncate">
-                          {a.title || '제목 없음'}
-                        </span>
-                        {summary?.riskLevel && (
-                          <span className={`text-[10px] border rounded-full px-2 py-0.5 font-medium ${riskColor(summary.riskLevel)}`}>
-                            위험도 {summary.riskLevel}
-                          </span>
+                  {/* 메인 카드 */}
+                  <div className="flex items-stretch gap-0">
+
+                    {/* 왼쪽: 위험도 */}
+                    <div className="flex flex-col items-center justify-center px-5 py-5 border-r border-[#d4b483]/10 min-w-[90px]">
+                      {summary && rs ? (
+                        <>
+                          <div className={`w-3 h-3 rounded-full ${rs.dot} mb-2 animate-pulse`} />
+                          <div className={`text-[10px] font-bold border rounded-lg px-2.5 py-1.5 text-center leading-tight ${rs.badge}`}>
+                            위험도<br />{summary.riskLevel}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[10px] text-[#5a5040]">-</div>
+                      )}
+                    </div>
+
+                    {/* 중앙: 세부 정보 + 지표 */}
+                    <div className="flex-1 py-4 px-4 min-w-0">
+                      {/* 제목 + 날짜 */}
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-sm font-semibold text-[#f0ebe0] truncate">{a.title || '제목 없음'}</span>
+                        <span className="text-[10px] text-[#5a5040] shrink-0">{formatDate(a.createdAt)}</span>
+                      </div>
+                      {/* 고객 정보 */}
+                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 mb-3">
+                        {a.gender && <span className="text-[11px] text-[#7a7060]">{a.gender}</span>}
+                        {a.age && <span className="text-[11px] text-[#7a7060]">{a.age}</span>}
+                        {a.job && <span className="text-[11px] text-[#7a7060]">{a.job}</span>}
+                        {a.fileNames && (
+                          <span className="text-[11px] text-[#5a5040]">📎 {truncateFiles(a.fileNames)}</span>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                        {a.gender && <span className="text-xs text-[#7a7060]">{a.gender}</span>}
-                        {a.age && <span className="text-xs text-[#7a7060]">{a.age}</span>}
-                        {a.job && <span className="text-xs text-[#7a7060]">{a.job}</span>}
-                        {a.fileNames && <span className="text-xs text-[#6a6050]">📎 {a.fileNames}</span>}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
+
+                      {/* 핵심 지표 3개 */}
                       {summary && (
-                        <div className="text-xs text-[#d4b483] font-medium mb-0.5">
-                          월 {summary.estimatedMonthlySavings} 절약 가능
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
+                            <div className="text-xl font-bold text-emerald-400 leading-tight">{summary.estimatedMonthlySavings}</div>
+                            <div className="text-[10px] text-[#5a5040] mt-0.5">월 절약 예상</div>
+                          </div>
+                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
+                            <div className="text-xl font-bold text-rose-400 leading-tight">{summary.duplicateCount}</div>
+                            <div className="text-[10px] text-[#5a5040] mt-0.5">중복 항목</div>
+                          </div>
+                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
+                            <div className="text-xl font-bold text-[#f0ebe0] leading-tight">{summary.totalPolicies}</div>
+                            <div className="text-[10px] text-[#5a5040] mt-0.5">총 보험 수</div>
+                          </div>
                         </div>
                       )}
-                      <div className="text-[11px] text-[#5a5040] mb-1.5">{formatDate(a.createdAt)}</div>
+                    </div>
+
+                    {/* 오른쪽: 액션 */}
+                    <div className="flex flex-col items-center justify-center gap-2 px-4 border-l border-[#d4b483]/10 shrink-0">
                       <Link
                         href={`/report/${a.id}`}
                         target="_blank"
-                        onClick={e => e.stopPropagation()}
-                        className="text-[11px] text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-2.5 py-1 hover:bg-[#d4b483]/10 transition-colors inline-block"
+                        className="text-xs text-[#d4b483] border border-[#d4b483]/40 rounded-xl px-3 py-2 hover:bg-[#d4b483]/10 transition-colors text-center whitespace-nowrap font-medium"
                       >
                         결과 보기
                       </Link>
+                      <button
+                        onClick={() => setSelected(selected?.id === a.id ? null : a)}
+                        className="text-xs text-[#8a7a60] border border-[#8a7a60]/40 rounded-xl px-3 py-2 hover:bg-[#8a7a60]/10 hover:text-[#c4b49a] hover:border-[#c4b49a]/40 transition-colors text-center whitespace-nowrap font-medium cursor-pointer"
+                      >
+                        {selected?.id === a.id ? '접기 ▲' : 'AI 요약 ▼'}
+                      </button>
                     </div>
                   </div>
 
-                  {summary && (
-                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[#d4b483]/10">
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-[#f0ebe0]">{summary.totalPolicies}</div>
-                        <div className="text-[10px] text-[#6a6050]">총 보험 수</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-rose-400">{summary.duplicateCount}</div>
-                        <div className="text-[10px] text-[#6a6050]">중복 항목</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-emerald-400">{summary.estimatedMonthlySavings}</div>
-                        <div className="text-[10px] text-[#6a6050]">절약 예상</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 펼쳐진 상세 내용 */}
+                  {/* 펼쳐진 AI 요약 */}
                   {selected?.id === a.id && a.result && (
-                    <div className="mt-4 pt-4 border-t border-[#d4b483]/15 text-left" onClick={e => e.stopPropagation()}>
+                    <div className="border-t border-[#d4b483]/10 px-5 py-4 bg-white/[0.02]">
                       {a.result.aiSummary && (
                         <div className="mb-3">
-                          <div className="text-xs text-[#d4b483] font-medium mb-1">AI 요약</div>
+                          <div className="text-[11px] text-[#d4b483] font-bold mb-1.5">AI 요약</div>
                           <p className="text-xs text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.aiSummary}</p>
                         </div>
                       )}
                       {a.result.recommendation && (
                         <div>
-                          <div className="text-xs text-[#d4b483] font-medium mb-1">추천</div>
+                          <div className="text-[11px] text-[#d4b483] font-bold mb-1.5">추천</div>
                           <p className="text-xs text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.recommendation}</p>
                         </div>
                       )}
                     </div>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>

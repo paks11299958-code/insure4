@@ -12,6 +12,11 @@ body, input, textarea, button, select {
 @media print {
   .no-print { display: none !important; }
   body { background: #fff !important; color: #111 !important; }
+
+  /* 막대 그래프 인쇄 강제 출력 */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .print-bar-bg { background-color: #e5e7eb !important; }
+  .print-bar-fill { background-color: #f59e0b !important; }
 }
 
 /* 골드 글로우 버튼 */
