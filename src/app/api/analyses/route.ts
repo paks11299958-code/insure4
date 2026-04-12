@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   const analyses = await prisma.analysis.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: 'desc' },
-    take: 20,
+    take: 100,
   })
   return NextResponse.json(analyses)
 }

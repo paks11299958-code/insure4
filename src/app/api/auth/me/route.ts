@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json(null)
   try {
     const { payload } = await jwtVerify(token, secret)
-    return NextResponse.json({ id: payload.id, email: payload.email, name: payload.name })
+    return NextResponse.json({ id: payload.id, email: payload.email, username: payload.username })
   } catch {
     return NextResponse.json(null)
   }

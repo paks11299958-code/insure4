@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, name } = await req.json()
+    const { email, password, username } = await req.json()
 
     if (!email || !password)
       return NextResponse.json({ error: '이메일과 비밀번호를 입력해주세요.' }, { status: 400 })
@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
-      data: { email, password: hashed, name: name || null },
+      data: { email, password: hashed, username: username || null },
     })
 
-    return NextResponse.json({ id: user.id, email: user.email, name: user.name }, { status: 201 })
+    return NextResponse.json({ id: user.id, email: user.email, username: user.username }, { status: 201 })
   } catch (err) {
     console.error('[register]', err)
     return NextResponse.json({ error: '회원가입 오류가 발생했습니다.' }, { status: 500 })

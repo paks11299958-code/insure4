@@ -1,7 +1,8 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, ChevronDown, LogOut, LogIn, UserPlus } from 'lucide-react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 interface Duplicate {
   item: string; policies: string; coverageA: string; coverageB: string
@@ -40,11 +41,12 @@ async function toText(file: File): Promise<string> {
 }
 
 // 따뜻한 골드 베이지 테마 입력창 공통 스타일
-const inputCls = 'w-full bg-white/[0.04] border border-[#d4b483]/20 rounded-xl px-3 py-2 text-[#c4b49a] text-sm placeholder:text-[#6a6050] outline-none focus:border-[#d4b483]/50 focus:bg-[#d4b483]/[0.04] transition-colors'
+const inputCls = 'w-full bg-white/[0.06] border border-[#d4b483]/25 rounded-xl px-3 py-2 text-[#f0ebe0] text-sm placeholder:text-[#9a8e7a] outline-none focus:border-[#d4b483]/70 focus:bg-[#d4b483]/[0.06] transition-colors'
 
-interface AuthUser { id: number; email: string; name?: string }
+interface AuthUser { id: number; email: string; username?: string }
 
 export default function Home() {
+  const pathname = usePathname()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -274,24 +276,79 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#2c2a29] text-[#c4b49a]">
-      {/* 상단 로그인 바 */}
-      <div className="border-b border-[#d4b483]/10 px-5 py-2.5 flex justify-end items-center gap-3 max-w-3xl mx-auto">
-        {authUser ? (
-          <>
-            <span className="text-xs text-[#7a7060]">{authUser.name || authUser.email}</span>
-            <Link href="/dashboard" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors">내 분석 내역</Link>
-            <button onClick={handleLogout}
-              className="text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1 hover:bg-[#d4b483]/10 transition-colors cursor-pointer">
-              로그아웃
-            </button>
-          </>
-        ) : (
-          <>
-            <Link href="/login" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors">로그인</Link>
-            <Link href="/register" className="text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1 hover:bg-[#d4b483]/10 transition-colors">회원가입</Link>
-          </>
-        )}
-      </div>
+      {/* GNB */}
+      <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#1e1c1b]/80 border-b border-[#d4b483]/10">
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
+
+          {/* 왼쪽: 로고 */}
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
+              <ShieldCheck size={15} className="text-white" />
+            </div>
+            <span className="text-sm font-semibold text-[#f0ebe0] group-hover:text-[#d4b483] transition-colors hidden sm:block">AI 보험 분석</span>
+          </Link>
+
+          {/* 중앙: 메뉴 */}
+          <div className="flex items-center gap-2">
+            {[
+              { href: '/', icon: <HomeIcon size={15} />, label: '홈' },
+              { href: '/dashboard', icon: <LayoutDashboard size={15} />, label: '내 분석 내역' },
+              { href: '#', icon: <Sparkles size={15} />, label: '프리미엄' },
+            ].map(item => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 group
+                  ${pathname === item.href
+                    ? 'bg-[#d4b483]/20 text-[#f5d28a] border border-[#d4b483]/40'
+                    : 'text-gray-300 hover:text-white border border-transparent hover:border-[#d4b483]/20 hover:bg-white/[0.07]'
+                  }`}
+              >
+                <span className={`${pathname === item.href ? 'text-[#f5d28a]' : 'text-[#d4b483] group-hover:text-white transition-colors'}`}>
+                  {item.icon}
+                </span>
+                <span className="hidden sm:block">{item.label}</span>
+                {pathname !== item.href && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-[#d4b483] rounded-full transition-all duration-200 group-hover:w-4/5" />
+                )}
+              </Link>
+            ))}
+          </div>
+
+          {/* 오른쪽: 유저 */}
+          <div className="flex items-center gap-2 shrink-0">
+            {authUser ? (
+              <>
+                <div className="flex items-center gap-1.5 text-xs text-[#c4b49a]">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center text-[10px] font-bold text-white">
+                    {(authUser.username || authUser.email).charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden sm:block text-[#c4b49a]">{authUser.username || authUser.email}</span>
+                  <ChevronDown size={12} className="text-[#6a6050]" />
+                </div>
+                <button onClick={handleLogout}
+                  className="flex items-center gap-1 text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1.5 hover:bg-[#d4b483]/10 transition-colors cursor-pointer">
+                  <LogOut size={12} />
+                  <span className="hidden sm:block">로그아웃</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login"
+                  className="flex items-center gap-1 text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors px-2 py-1.5">
+                  <LogIn size={13} />
+                  <span className="hidden sm:block">로그인</span>
+                </Link>
+                <Link href="/register"
+                  className="flex items-center gap-1 text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1.5 hover:bg-[#d4b483]/10 transition-colors">
+                  <UserPlus size={13} />
+                  <span className="hidden sm:block">회원가입</span>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
 
       <div className="max-w-3xl mx-auto px-5 py-10 pb-20">
 
@@ -318,11 +375,11 @@ export default function Home() {
         <section className="bg-white/[0.03] border border-[#d4b483]/20 rounded-2xl p-5 mb-4">
           <div className="mb-4">
             <p className="text-sm font-medium text-[#d4b483]">사용자 기본 정보</p>
-            <p className="text-xs text-blue-400 font-normal mt-0.5">(AI가 더욱 자세한 분석을 할 수 있습니다.)</p>
+            <p className="text-xs text-cyan-300 font-medium mt-0.5">(AI가 더욱 자세한 분석을 할 수 있습니다.)</p>
           </div>
           <div className="flex flex-col gap-1.5 mb-3">
             <div className="flex items-center gap-4">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">제목</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">제목</label>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -342,38 +399,38 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">성별</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">성별</label>
               <input ref={genderRef} className={inputCls} value={userInfo.gender}
                 onChange={e => setUserInfo(p => ({...p, gender: e.target.value}))}
                 placeholder="예: 남성" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">연령</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">연령</label>
               <input ref={ageRef} className={inputCls} value={userInfo.age}
                 onChange={e => setUserInfo(p => ({...p, age: e.target.value}))}
                 placeholder="예: 1973년생 (만 51세)" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">직업</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">직업</label>
               <input ref={jobRef} className={inputCls} value={userInfo.job}
                 onChange={e => setUserInfo(p => ({...p, job: e.target.value}))}
                 placeholder="예: IT 기업 대표 (사무직)" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">건강</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">건강</label>
               <input ref={healthRef} className={inputCls} value={userInfo.health}
                 onChange={e => setUserInfo(p => ({...p, health: e.target.value}))}
                 placeholder="예: 고혈압 약 복용 중 (5년 내 수술 없음)" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#d4b483] font-medium tracking-wide">예산</label>
+              <label className="text-xs text-[#e8c97a] font-bold tracking-wide">예산</label>
               <input ref={budgetRef} className={inputCls} value={userInfo.budget}
                 onChange={e => setUserInfo(p => ({...p, budget: e.target.value}))}
                 placeholder="예: 월 15만 원 내외" />
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-4">
-                <label className="text-xs text-[#d4b483] font-medium tracking-wide">목적</label>
+                <label className="text-xs text-[#e8c97a] font-bold tracking-wide">목적</label>
                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -437,13 +494,16 @@ export default function Home() {
         )}
 
         {/* Analyze Button */}
-        <button
-          className="no-print w-full py-3.5 bg-gradient-to-r from-[#7a5c2e] to-[#c4974a] hover:brightness-110 hover:-translate-y-px disabled:opacity-35 disabled:cursor-not-allowed disabled:transform-none rounded-xl text-[#f0ebe0] font-medium text-base transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#7a5c2e]/20"
-          disabled={files.length===0||loading}
-          onClick={handleAnalyzeClick}
-        >
-          {loading ? '⏳ 분석 중...' : '🔍 AI 중복 분석 시작'}
-        </button>
+        <div className={`no-print ${(files.length===0||loading) ? 'opacity-40 pointer-events-none' : ''}`}>
+          <button
+            className="gold-glow-btn w-full py-4 bg-gradient-to-b from-[#f5d060] via-[#e8b840] to-[#c4892a] hover:from-[#fde878] hover:via-[#f0c840] hover:to-[#d49a30] hover:scale-[1.01] hover:-translate-y-0.5 disabled:cursor-not-allowed rounded-xl border-2 border-[#f5d060] text-[#1e1408] font-extrabold text-base tracking-wide transition-transform duration-200 flex items-center justify-center gap-2.5 cursor-pointer"
+            disabled={files.length===0||loading}
+            onClick={handleAnalyzeClick}
+          >
+            <span className={`text-lg ${!loading ? 'animate-bounce' : ''}`}>{loading ? '⏳' : '🔍'}</span>
+            <span>{loading ? '분석 중...' : 'AI 중복 분석 시작'}</span>
+          </button>
+        </div>
 
         {/* Loading */}
         {loading && (

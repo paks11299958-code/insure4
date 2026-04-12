@@ -20,12 +20,12 @@ export async function POST(req: NextRequest) {
     if (!valid)
       return NextResponse.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 })
 
-    const token = await new SignJWT({ id: user.id, email: user.email, name: user.name })
+    const token = await new SignJWT({ id: user.id, email: user.email, username: user.username })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('7d')
       .sign(secret)
 
-    const res = NextResponse.json({ id: user.id, email: user.email, name: user.name })
+    const res = NextResponse.json({ id: user.id, email: user.email, username: user.username })
     res.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

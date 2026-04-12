@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -20,7 +20,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, username }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -42,9 +42,9 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="bg-white/[0.03] border border-[#d4b483]/20 rounded-2xl p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#d4b483] font-medium">이름</label>
-            <input type="text" className={inputCls} placeholder="홍길동"
-              value={name} onChange={e => setName(e.target.value)} />
+            <label className="text-xs text-[#d4b483] font-medium">아이디</label>
+            <input type="text" className={inputCls} placeholder="사용할 아이디 입력"
+              value={username} onChange={e => setUsername(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-[#d4b483] font-medium">이메일</label>

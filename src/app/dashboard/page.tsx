@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-interface AuthUser { id: number; email: string; name?: string }
+interface AuthUser { id: number; email: string; username?: string }
 
 interface Analysis {
   id: number
@@ -45,6 +45,11 @@ export default function DashboardPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Analysis | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filtered = analyses.filter(a =>
+    (a.title || '').toLowerCase().includes(search.toLowerCase())
+  )
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(u => {
@@ -78,7 +83,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-medium text-[#f0ebe0]">분석 내역</h1>
-            <p className="text-xs text-[#7a7060] mt-0.5">{authUser?.name || authUser?.email}님의 보험 분석 기록</p>
+            <p className="text-xs text-[#7a7060] mt-0.5">{authUser?.username || authUser?.email}님의 보험 분석 기록</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/" className="text-xs text-[#d4b483] hover:underline">홈으로</Link>
@@ -86,15 +91,38 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* 검색창 */}
+        {analyses.length > 0 && (
+          <div className="relative mb-4">
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="제목으로 검색..."
+              className="w-full bg-white/[0.04] border border-[#d4b483]/20 rounded-xl px-4 py-2.5 text-sm text-[#c4b49a] placeholder:text-[#6a6050] outline-none focus:border-[#d4b483]/50 transition-colors"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6050] hover:text-[#c4b49a] text-lg leading-none cursor-pointer"
+              >×</button>
+            )}
+          </div>
+        )}
+
         {/* 목록 */}
         {analyses.length === 0 ? (
           <div className="bg-white/[0.03] border border-[#d4b483]/15 rounded-2xl p-12 text-center">
             <p className="text-[#7a7060] text-sm mb-3">저장된 분석 내역이 없습니다.</p>
             <Link href="/" className="text-xs text-[#d4b483] hover:underline">분석 시작하기</Link>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white/[0.03] border border-[#d4b483]/15 rounded-2xl p-10 text-center">
+            <p className="text-[#7a7060] text-sm">"{search}" 검색 결과가 없습니다.</p>
+          </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {analyses.map(a => {
+            {filtered.map(a => {
               const summary = a.result?.summary
               return (
                 <button
@@ -127,7 +155,15 @@ export default function DashboardPage() {
                           월 {summary.estimatedMonthlySavings} 절약 가능
                         </div>
                       )}
-                      <div className="text-[11px] text-[#5a5040]">{formatDate(a.createdAt)}</div>
+                      <div className="text-[11px] text-[#5a5040] mb-1.5">{formatDate(a.createdAt)}</div>
+                      <Link
+                        href={`/report/${a.id}`}
+                        target="_blank"
+                        onClick={e => e.stopPropagation()}
+                        className="text-[11px] text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-2.5 py-1 hover:bg-[#d4b483]/10 transition-colors inline-block"
+                      >
+                        결과 보기
+                      </Link>
                     </div>
                   </div>
 
@@ -171,7 +207,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <p className="text-center text-[10px] text-[#4a4035] mt-6">최근 20개 내역 표시</p>
+        <p className="text-center text-xs text-[#7a7060] mt-6">
+          {search ? `${filtered.length}개 검색됨 (전체 ${analyses.length}개)` : `최근 ${analyses.length}개 내역 표시 (최대 100개)`}
+        </p>
       </div>
     </main>
   )

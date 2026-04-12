@@ -14,6 +14,29 @@ body, input, textarea, button, select {
   body { background: #fff !important; color: #111 !important; }
 }
 
+/* 골드 글로우 버튼 */
+@keyframes gold-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 6px 1px #f5d06088,
+      0 0 14px 3px #e8b84055,
+      inset 0 1px 0 #fde87888;
+  }
+  50% {
+    box-shadow:
+      0 0 12px 3px #f5d060bb,
+      0 0 28px 8px #e8b84077,
+      inset 0 1px 0 #fde878aa;
+  }
+}
+
+.gold-glow-btn {
+  animation: gold-glow-pulse 2.5s ease-in-out infinite;
+}
+.gold-glow-btn:hover {
+  animation: gold-glow-pulse 1.2s ease-in-out infinite;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
