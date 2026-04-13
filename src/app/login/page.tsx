@@ -109,12 +109,17 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <p className="text-center text-xs text-[#6a5e48]">
-              계정이 없으신가요?{' '}
-              <Link href="/register" className="text-[#d4b483] hover:text-[#f5d060] hover:underline transition-colors font-medium">
-                회원가입
+            <div className="flex flex-col gap-2 items-center">
+              <Link href="/forgot-password" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors">
+                비밀번호를 잊으셨나요?
               </Link>
-            </p>
+              <p className="text-xs text-[#6a5e48]">
+                계정이 없으신가요?{' '}
+                <Link href="/register" className="text-[#d4b483] hover:text-[#f5d060] hover:underline transition-colors font-medium">
+                  회원가입
+                </Link>
+              </p>
+            </div>
           </form>
         </div>
 
