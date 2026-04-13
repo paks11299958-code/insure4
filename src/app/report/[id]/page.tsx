@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, LogOut, LogIn, UserPlus } from 'lucide-react'
 
 const severityStyle = (s: string) => {
   if (s === '높음') return 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
@@ -43,12 +44,31 @@ const riskColor = (level: string) => {
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+const NAV_ITEMS = [
+  { href: '/', icon: <HomeIcon size={18} />, label: '홈' },
+  { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: '내 분석 내역' },
+  { href: '#', icon: <Sparkles size={18} />, label: '프리미엄' },
+]
+
+interface AuthUser { id: number; email: string; username?: string }
+
 export default function ReportPage() {
   const { id } = useParams()
+  const pathname = usePathname()
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modalItem, setModalItem] = useState<Duplicate | null>(null)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(u => { if (u?.id) setAuthUser(u) })
+  }, [])
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setAuthUser(null)
+  }
 
   useEffect(() => {
     fetch(`/api/report/${id}`)
@@ -106,13 +126,13 @@ export default function ReportPage() {
 
 
   if (loading) return (
-    <main className="min-h-screen bg-[#2c2a29] flex items-center justify-center">
+    <main className="min-h-screen bg-[#1a1816] flex items-center justify-center">
       <div className="text-[#7a7060] text-sm">불러오는 중...</div>
     </main>
   )
 
   if (error || !analysis) return (
-    <main className="min-h-screen bg-[#2c2a29] flex items-center justify-center">
+    <main className="min-h-screen bg-[#1a1816] flex items-center justify-center">
       <div className="text-center">
         <p className="text-rose-400 text-sm mb-3">{error || '분석 결과를 찾을 수 없습니다.'}</p>
         <Link href="/dashboard" className="text-xs text-[#d4b483] hover:underline">대시보드로</Link>
@@ -126,10 +146,80 @@ export default function ReportPage() {
   const risk = summary ? riskColor(summary.riskLevel) : null
 
   return (
-    <main className="min-h-screen bg-[#2c2a29] text-[#c4b49a] px-4 py-8">
+    <main className="min-h-screen bg-[#1a1816] text-[#c4b49a]">
+
+      {/* ── 데스크탑 GNB (sm 이상) ── */}
+      <nav className="hidden sm:flex sticky top-0 z-50 w-full backdrop-blur-md bg-[#1e1c1b]/90 border-b border-[#d4b483]/10 print:hidden">
+        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between w-full gap-4">
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
+              <ShieldCheck size={15} className="text-white" />
+            </div>
+            <span className="text-sm font-semibold text-[#f0ebe0] group-hover:text-[#d4b483] transition-colors">AI 보험 분석</span>
+          </Link>
+
+          <div className="flex items-center gap-1">
+            {NAV_ITEMS.map(item => (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all
+                  ${pathname === item.href
+                    ? 'bg-[#d4b483]/15 text-[#f5d28a]'
+                    : 'text-[#7a7060] hover:text-[#c4b49a] hover:bg-white/[0.05]'}`}>
+                {item.icon} {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {authUser ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center text-[10px] font-bold text-white">
+                    {(authUser.username || authUser.email).charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs text-[#c4b49a]">{authUser.username || authUser.email}</span>
+                </div>
+                <button onClick={handleLogout}
+                  className="flex items-center gap-1 text-xs text-[#7a7060] hover:text-[#d4b483] border border-[#d4b483]/20 rounded-lg px-3 py-1.5 hover:border-[#d4b483]/40 transition-colors cursor-pointer">
+                  <LogOut size={12} /> 로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors px-2 py-1.5 flex items-center gap-1">
+                  <LogIn size={13} /> 로그인
+                </Link>
+                <Link href="/register" className="flex items-center gap-1 text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1.5 hover:bg-[#d4b483]/10 transition-colors">
+                  <UserPlus size={13} /> 회원가입
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* ── 모바일 상단 헤더 (sm 미만) ── */}
+      <div className="sm:hidden flex items-center justify-between px-5 pt-12 pb-4 bg-[#1e1c1b] border-b border-[#d4b483]/10 print:hidden">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
+            <ShieldCheck size={15} className="text-white" />
+          </div>
+          <span className="text-sm font-semibold text-[#f0ebe0]">AI 보험 분석</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {authUser ? (
+            <button onClick={handleLogout} className="text-xs text-[#7a7060] cursor-pointer">로그아웃</button>
+          ) : (
+            <Link href="/login" className="text-xs text-[#d4b483]">로그인</Link>
+          )}
+        </div>
+      </div>
+
+      {/* ── 본문 ── */}
+      <div className="px-4 py-8">
       <div className="max-w-3xl mx-auto">
 
-        {/* 헤더 */}
+        {/* 리포트 헤더 */}
         <div className="text-center mb-8 pb-6 border-b border-[#d4b483]/15">
           <h1 className="text-2xl font-medium text-[#f0ebe0] mb-2">{analysis.title || '보험 중복 분석 결과'}</h1>
           <p className="text-xs text-[#7a7060] mb-3">{formatDate(analysis.createdAt)}</p>
@@ -139,7 +229,7 @@ export default function ReportPage() {
             </span>
           )}
           {/* 버튼 */}
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-2 mt-4 print:hidden">
             <button onClick={exportTxt}
               className="px-4 py-1.5 bg-transparent border border-[#d4b483]/30 rounded-lg text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer">
               📄 TXT 저장
@@ -304,6 +394,23 @@ export default function ReportPage() {
           <Link href="/dashboard" className="text-xs text-[#d4b483] hover:underline">← 분석 내역으로</Link>
         </div>
       </div>
+      </div>{/* /본문 */}
+
+      {/* ── 모바일 하단 탭바 ── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1e1c1b]/95 backdrop-blur-md border-t border-[#d4b483]/10 print:hidden">
+        <div className="flex items-center justify-around h-16 px-2">
+          {NAV_ITEMS.map(item => (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all
+                ${pathname === item.href
+                  ? 'text-[#f5d28a]'
+                  : 'text-[#5a5040] hover:text-[#c4b49a]'}`}>
+              {item.icon}
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       {/* 중복 항목 상세 모달 */}
       {modalItem && (
