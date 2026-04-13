@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -28,25 +28,16 @@ interface Analysis {
   createdAt: string
 }
 
+interface Toast {
+  id: number
+  message: string
+  deletedItem: Analysis | null
+}
+
 const riskStyle = (level: string) => {
-  if (level === '높음') return {
-    badge: 'bg-rose-500/15 border-rose-500/40 text-rose-400',
-    dot: 'bg-rose-400',
-    glow: 'shadow-rose-500/10',
-    border: 'hover:border-rose-500/30',
-  }
-  if (level === '중간') return {
-    badge: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
-    dot: 'bg-amber-400',
-    glow: 'shadow-amber-500/10',
-    border: 'hover:border-amber-500/30',
-  }
-  return {
-    badge: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
-    dot: 'bg-emerald-400',
-    glow: 'shadow-emerald-500/10',
-    border: 'hover:border-emerald-500/30',
-  }
+  if (level === '높음') return { badge: 'bg-rose-500/20 text-rose-400 border-rose-500/30', dot: 'bg-rose-400', bar: 'border-rose-500/20' }
+  if (level === '중간') return { badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', dot: 'bg-amber-400', bar: 'border-amber-500/20' }
+  return { badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', bar: 'border-emerald-500/20' }
 }
 
 const formatDate = (iso: string) => {
@@ -56,8 +47,8 @@ const formatDate = (iso: string) => {
 
 const truncateFiles = (names: string) => {
   const list = names.split(',').map(s => s.trim())
-  if (list.length <= 2) return names
-  return `${list[0]}, ${list[1]} 외 ${list.length - 2}개`
+  if (list.length <= 1) return names
+  return `${list[0]} 외 ${list.length - 1}개`
 }
 
 export default function DashboardPage() {
@@ -67,6 +58,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Analysis | null>(null)
   const [search, setSearch] = useState('')
+  const [openMenu, setOpenMenu] = useState<number | null>(null)
+  const [confirmId, setConfirmId] = useState<number | null>(null)
+  const [toast, setToast] = useState<Toast | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   const filtered = analyses.filter(a =>
     (a.title || '').toLowerCase().includes(search.toLowerCase())
@@ -83,172 +79,315 @@ export default function DashboardPage() {
     })
   }, [router])
 
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/')
   }
 
+  const showToast = useCallback((message: string, deletedItem: Analysis | null = null) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToast({ id: Date.now(), message, deletedItem })
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  const handleDelete = async (id: number) => {
+    const target = analyses.find(a => a.id === id)
+    if (!target) return
+    setConfirmId(null)
+
+    // 낙관적 업데이트 (즉시 목록에서 제거)
+    setAnalyses(prev => prev.filter(a => a.id !== id))
+    showToast('삭제되었습니다.', target)
+
+    const res = await fetch(`/api/analyses/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      // 실패 시 복구
+      setAnalyses(prev => [target, ...prev].sort((a, b) => b.id - a.id))
+      showToast('삭제에 실패했습니다.')
+    }
+  }
+
+  const handleUndo = async () => {
+    if (!toast?.deletedItem) return
+    const item = toast.deletedItem
+    setToast(null)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+
+    // 목록에 복구 (서버에서 실제 복구는 불가, UI만 복구 후 새로고침)
+    setAnalyses(prev => [item, ...prev].sort((a, b) => b.id - a.id))
+    // 서버에 재저장은 불가하므로 실제로는 목록 재조회
+    const res = await fetch('/api/analyses')
+    const data = await res.json()
+    setAnalyses(Array.isArray(data) ? data : [])
+  }
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#2c2a29] flex items-center justify-center">
+      <main className="min-h-screen bg-[#1a1816] flex items-center justify-center">
         <div className="text-[#7a7060] text-sm">불러오는 중...</div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#2c2a29] px-4 py-6">
-      <div className="max-w-4xl mx-auto">
+    <main className="min-h-screen bg-[#1a1816] pb-10">
 
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold text-[#f0ebe0]">분석 내역</h1>
-            <p className="text-xs text-[#7a7060] mt-0.5">{authUser?.username || authUser?.email}님의 보험 분석 기록</p>
+      {/* 헤더 */}
+      <div className="bg-[#1e1c1a] border-b border-[#d4b483]/10">
+        <div className="max-w-6xl mx-auto px-5 pt-10 pb-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-[#7a7060] mb-1">{authUser?.username || authUser?.email}</p>
+              <h1 className="text-2xl font-bold text-[#f0ebe0]">분석 내역</h1>
+            </div>
+            <div className="flex items-center gap-4 pt-1">
+              <Link href="/" className="text-sm text-[#d4b483] hover:underline">홈</Link>
+              <button onClick={handleLogout} className="text-sm text-[#7a7060] hover:text-[#c4b49a] cursor-pointer transition-colors">로그아웃</button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-xs text-[#d4b483] hover:underline">홈으로</Link>
-            <button onClick={handleLogout} className="text-xs text-[#7a7060] hover:text-[#c4b49a] transition-colors cursor-pointer">로그아웃</button>
-          </div>
+
+          {analyses.length > 0 && (
+            <div className="relative mt-4 max-w-md">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="제목으로 검색"
+                className="w-full bg-white/[0.06] border border-[#d4b483]/15 rounded-2xl px-4 py-3 text-sm text-[#f0ebe0] placeholder:text-[#5a5040] outline-none focus:border-[#d4b483]/40 transition-colors"
+              />
+              {search && (
+                <button onClick={() => setSearch('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6a6050] text-xl leading-none cursor-pointer">×</button>
+              )}
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* 검색창 */}
-        {analyses.length > 0 && (
-          <div className="relative mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="제목으로 검색..."
-              className="w-full bg-white/[0.04] border border-[#d4b483]/20 rounded-xl px-4 py-2.5 text-sm text-[#c4b49a] placeholder:text-[#6a6050] outline-none focus:border-[#d4b483]/50 transition-colors"
-            />
-            {search && (
-              <button onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6050] hover:text-[#c4b49a] text-lg leading-none cursor-pointer">×</button>
-            )}
-          </div>
-        )}
+      {/* 컨텐츠 */}
+      <div className="max-w-6xl mx-auto px-4 pt-5">
 
-        {/* 목록 */}
         {analyses.length === 0 ? (
-          <div className="bg-white/[0.03] border border-[#d4b483]/15 rounded-2xl p-12 text-center">
-            <p className="text-[#7a7060] text-sm mb-3">저장된 분석 내역이 없습니다.</p>
-            <Link href="/" className="text-xs text-[#d4b483] hover:underline">분석 시작하기</Link>
+          <div className="mt-20 text-center">
+            <div className="text-5xl mb-4">📋</div>
+            <p className="text-[#7a7060] text-base mb-2">분석 내역이 없습니다</p>
+            <p className="text-[#5a5040] text-sm mb-6">보험을 분석하면 여기에 저장됩니다</p>
+            <Link href="/" className="inline-block px-6 py-3 bg-[#d4b483]/15 border border-[#d4b483]/30 rounded-2xl text-[#d4b483] text-sm font-medium">
+              분석 시작하기
+            </Link>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white/[0.03] border border-[#d4b483]/15 rounded-2xl p-10 text-center">
+          <div className="mt-10 text-center">
             <p className="text-[#7a7060] text-sm">"{search}" 검색 결과가 없습니다.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {filtered.map(a => {
-              const summary = a.result?.summary
-              const rs = summary ? riskStyle(summary.riskLevel) : null
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" ref={menuRef}>
+              {filtered.map(a => {
+                const summary = a.result?.summary
+                const rs = summary ? riskStyle(summary.riskLevel) : null
+                const isOpen = selected?.id === a.id
+                const isMenuOpen = openMenu === a.id
 
-              return (
-                <div
-                  key={a.id}
-                  className={`bg-[#1e1c1a] border border-[#d4b483]/15 ${rs?.border ?? 'hover:border-[#d4b483]/35'} rounded-2xl overflow-hidden transition-all duration-200 shadow-lg ${rs?.glow ?? ''} hover:shadow-[#d4b483]/10 hover:-translate-y-px`}
-                  style={{ boxShadow: '0 0 0 1px rgba(212,180,131,0.08), 0 4px 20px rgba(0,0,0,0.3)' }}
-                >
-                  {/* 메인 카드 */}
-                  <div className="flex items-stretch gap-0">
+                return (
+                  <div
+                    key={a.id}
+                    className={`bg-[#242220] rounded-3xl overflow-hidden border flex flex-col ${rs?.bar ?? 'border-[#d4b483]/10'}`}
+                    style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.4)' }}
+                  >
+                    {/* 카드 상단 */}
+                    <div className="px-5 pt-5 pb-3 flex-1">
+                      <div className="flex items-start justify-between gap-2 mb-4">
+                        {/* 제목 + 정보 */}
+                        <div className="min-w-0 flex-1">
+                          <h2 className="text-base font-bold text-[#f0ebe0] leading-snug truncate">
+                            {a.title || '제목 없음'}
+                          </h2>
+                          <p className="text-xs text-[#5a5040] mt-1 leading-relaxed">
+                            {[a.gender, a.age, a.job].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
 
-                    {/* 왼쪽: 위험도 */}
-                    <div className="flex flex-col items-center justify-center px-5 py-5 border-r border-[#d4b483]/10 min-w-[90px]">
-                      {summary && rs ? (
-                        <>
-                          <div className={`w-3 h-3 rounded-full ${rs.dot} mb-2 animate-pulse`} />
-                          <div className={`text-[10px] font-bold border rounded-lg px-2.5 py-1.5 text-center leading-tight ${rs.badge}`}>
-                            위험도<br />{summary.riskLevel}
+                        {/* 위험도 + ⋮ 메뉴 */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {summary && rs && (
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${rs.badge}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${rs.dot} animate-pulse`} />
+                              {summary.riskLevel}
+                            </div>
+                          )}
+
+                          {/* ⋮ 드롭다운 메뉴 */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenMenu(isMenuOpen ? null : a.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-xl text-[#7a7060] hover:text-[#c4b49a] hover:bg-white/[0.08] transition-colors cursor-pointer text-lg"
+                            >
+                              ⋮
+                            </button>
+
+                            {isMenuOpen && (
+                              <div className="absolute right-0 top-10 z-20 w-40 bg-[#2e2c2a] border border-[#d4b483]/20 rounded-2xl shadow-2xl overflow-hidden">
+                                <Link
+                                  href={`/report/${a.id}`}
+                                  target="_blank"
+                                  onClick={() => setOpenMenu(null)}
+                                  className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#c4b49a] hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span>📄</span> 결과 보기
+                                </Link>
+                                <button
+                                  onClick={() => { setSelected(isOpen ? null : a); setOpenMenu(null) }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[#c4b49a] hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                >
+                                  <span>🤖</span> AI 요약
+                                </button>
+                                <div className="border-t border-[#d4b483]/10 mx-3" />
+                                <button
+                                  onClick={() => { setConfirmId(a.id); setOpenMenu(null) }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                >
+                                  <span>🗑️</span> 삭제
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        </>
-                      ) : (
-                        <div className="text-[10px] text-[#5a5040]">-</div>
-                      )}
-                    </div>
-
-                    {/* 중앙: 세부 정보 + 지표 */}
-                    <div className="flex-1 py-4 px-4 min-w-0">
-                      {/* 제목 + 날짜 */}
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-semibold text-[#f0ebe0] truncate">{a.title || '제목 없음'}</span>
-                        <span className="text-[10px] text-[#5a5040] shrink-0">{formatDate(a.createdAt)}</span>
-                      </div>
-                      {/* 고객 정보 */}
-                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 mb-3">
-                        {a.gender && <span className="text-[11px] text-[#7a7060]">{a.gender}</span>}
-                        {a.age && <span className="text-[11px] text-[#7a7060]">{a.age}</span>}
-                        {a.job && <span className="text-[11px] text-[#7a7060]">{a.job}</span>}
-                        {a.fileNames && (
-                          <span className="text-[11px] text-[#5a5040]">📎 {truncateFiles(a.fileNames)}</span>
-                        )}
+                        </div>
                       </div>
 
-                      {/* 핵심 지표 3개 */}
+                      {/* 핵심 지표 */}
                       {summary && (
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
-                            <div className="text-xl font-bold text-emerald-400 leading-tight">{summary.estimatedMonthlySavings}</div>
-                            <div className="text-[10px] text-[#5a5040] mt-0.5">월 절약 예상</div>
+                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
+                            <div className="text-base font-bold text-emerald-400 leading-tight">{summary.estimatedMonthlySavings}</div>
+                            <div className="text-[11px] text-[#5a5040] mt-1">월 절약</div>
                           </div>
-                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
-                            <div className="text-xl font-bold text-rose-400 leading-tight">{summary.duplicateCount}</div>
-                            <div className="text-[10px] text-[#5a5040] mt-0.5">중복 항목</div>
+                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
+                            <div className="text-base font-bold text-rose-400 leading-tight">{summary.duplicateCount}</div>
+                            <div className="text-[11px] text-[#5a5040] mt-1">중복 항목</div>
                           </div>
-                          <div className="bg-white/[0.03] border border-[#d4b483]/10 rounded-xl py-2.5 px-3 text-center">
-                            <div className="text-xl font-bold text-[#f0ebe0] leading-tight">{summary.totalPolicies}</div>
-                            <div className="text-[10px] text-[#5a5040] mt-0.5">총 보험 수</div>
+                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
+                            <div className="text-base font-bold text-[#d4b483] leading-tight">{summary.totalPolicies}</div>
+                            <div className="text-[11px] text-[#5a5040] mt-1">총 보험</div>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {/* 오른쪽: 액션 */}
-                    <div className="flex flex-col items-center justify-center gap-2 px-4 border-l border-[#d4b483]/10 shrink-0">
+                    {/* 날짜 + 파일 */}
+                    <div className="px-5 py-3 flex items-center justify-between border-t border-[#d4b483]/08">
+                      <span className="text-xs text-[#5a5040]">{formatDate(a.createdAt)}</span>
+                      {a.fileNames && (
+                        <span className="text-xs text-[#5a5040] truncate max-w-[120px]">📎 {truncateFiles(a.fileNames)}</span>
+                      )}
+                    </div>
+
+                    {/* 버튼 */}
+                    <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                       <Link
                         href={`/report/${a.id}`}
                         target="_blank"
-                        className="text-xs text-[#d4b483] border border-[#d4b483]/40 rounded-xl px-3 py-2 hover:bg-[#d4b483]/10 transition-colors text-center whitespace-nowrap font-medium"
+                        className="flex items-center justify-center py-3 bg-[#d4b483] rounded-2xl text-[#1a1410] text-sm font-bold transition-opacity hover:opacity-90"
                       >
                         결과 보기
                       </Link>
                       <button
-                        onClick={() => setSelected(selected?.id === a.id ? null : a)}
-                        className="text-xs text-[#8a7a60] border border-[#8a7a60]/40 rounded-xl px-3 py-2 hover:bg-[#8a7a60]/10 hover:text-[#c4b49a] hover:border-[#c4b49a]/40 transition-colors text-center whitespace-nowrap font-medium cursor-pointer"
+                        onClick={() => setSelected(isOpen ? null : a)}
+                        className="flex items-center justify-center py-3 bg-white/[0.06] border border-[#d4b483]/20 rounded-2xl text-[#c4b49a] text-sm font-medium hover:bg-white/[0.1] transition-colors cursor-pointer"
                       >
-                        {selected?.id === a.id ? '접기 ▲' : 'AI 요약 ▼'}
+                        {isOpen ? '접기 ▲' : 'AI 요약 ▼'}
                       </button>
                     </div>
+
+                    {/* AI 요약 펼침 */}
+                    {isOpen && a.result && (
+                      <div className="border-t border-[#d4b483]/10 mx-4 mb-4 pt-4 space-y-3">
+                        {a.result.aiSummary && (
+                          <div>
+                            <p className="text-xs font-bold text-[#d4b483] mb-1.5">AI 요약</p>
+                            <p className="text-sm text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.aiSummary}</p>
+                          </div>
+                        )}
+                        {a.result.recommendation && (
+                          <div>
+                            <p className="text-xs font-bold text-[#d4b483] mb-1.5">추천</p>
+                            <p className="text-sm text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.recommendation}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
+                )
+              })}
+            </div>
 
-                  {/* 펼쳐진 AI 요약 */}
-                  {selected?.id === a.id && a.result && (
-                    <div className="border-t border-[#d4b483]/10 px-5 py-4 bg-white/[0.02]">
-                      {a.result.aiSummary && (
-                        <div className="mb-3">
-                          <div className="text-[11px] text-[#d4b483] font-bold mb-1.5">AI 요약</div>
-                          <p className="text-xs text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.aiSummary}</p>
-                        </div>
-                      )}
-                      {a.result.recommendation && (
-                        <div>
-                          <div className="text-[11px] text-[#d4b483] font-bold mb-1.5">추천</div>
-                          <p className="text-xs text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.recommendation}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+            <p className="text-center text-xs text-[#4a4035] mt-6">
+              {search ? `${filtered.length}개 검색됨 (전체 ${analyses.length}개)` : `총 ${analyses.length}개`}
+            </p>
+          </>
         )}
-
-        <p className="text-center text-xs text-[#7a7060] mt-6">
-          {search ? `${filtered.length}개 검색됨 (전체 ${analyses.length}개)` : `최근 ${analyses.length}개 내역 표시 (최대 100개)`}
-        </p>
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {confirmId !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setConfirmId(null)}
+        >
+          <div
+            className="w-full sm:max-w-sm bg-[#242220] rounded-t-3xl sm:rounded-3xl p-6 border border-[#d4b483]/15"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-3">🗑️</div>
+              <h3 className="text-base font-bold text-[#f0ebe0] mb-1">분석 내역을 삭제할까요?</h3>
+              <p className="text-sm text-[#7a7060]">삭제된 데이터는 복구되지 않습니다.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setConfirmId(null)}
+                className="py-3.5 rounded-2xl bg-white/[0.06] border border-[#d4b483]/15 text-[#c4b49a] text-sm font-medium cursor-pointer hover:bg-white/[0.1] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleDelete(confirmId)}
+                className="py-3.5 rounded-2xl bg-rose-500/90 hover:bg-rose-500 text-white text-sm font-bold cursor-pointer transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 토스트 */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#2e2c2a] border border-[#d4b483]/20 rounded-2xl px-5 py-3.5 shadow-2xl"
+          style={{ minWidth: '240px' }}>
+          <span className="text-sm text-[#f0ebe0] flex-1">{toast.message}</span>
+          {toast.deletedItem && (
+            <button
+              onClick={handleUndo}
+              className="text-sm text-[#d4b483] font-bold hover:text-[#f5d060] transition-colors cursor-pointer shrink-0"
+            >
+              실행 취소
+            </button>
+          )}
+        </div>
+      )}
     </main>
   )
 }
