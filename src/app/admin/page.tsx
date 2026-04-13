@@ -97,7 +97,7 @@ export default function AdminPage() {
                     labelStyle={{ color: '#d4b483' }}
                     itemStyle={{ color: '#c4b49a' }}
                     labelFormatter={v => `날짜: ${v}`}
-                    formatter={(v: number) => [`${v}명`, '신규 가입']}
+                    formatter={(v) => [`${v}명`, '신규 가입']}
                   />
                   <Area
                     type="monotone"
