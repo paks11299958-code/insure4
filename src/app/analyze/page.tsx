@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Bell, ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, LogOut, LogIn, UserPlus, Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import CodefImportButton from './CodefImportButton'
 
 interface Duplicate {
   item: string; policies: string; coverageA: string; coverageB: string
@@ -557,6 +558,15 @@ export default function AnalyzePage() {
             </div>
           </div>
         </section>
+
+        {/* [2.5] 내보험 가져오기 버튼 */}
+        <CodefImportButton onImported={(file) => {
+          setFiles(prev => {
+            const exists = prev.some(f => f.name === file.name)
+            if (exists) return prev
+            return [...prev, { file, name: file.name, size: file.size }].slice(0, MAX_FILES)
+          })
+        }} />
 
         {/* [3] 업로드 카드 */}
         <section className="bg-[#131F35] border border-[#4B7FD4]/15 rounded-3xl p-5 mb-4">
