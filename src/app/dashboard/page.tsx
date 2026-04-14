@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, LogOut, LogIn, UserPlus } from 'lucide-react'
+import { ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, LogOut, LogIn, UserPlus, Menu, X } from 'lucide-react'
 
 interface AuthUser { id: number; email: string; username?: string }
 
@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [openMenu, setOpenMenu] = useState<number | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -142,87 +143,112 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#1a1816] flex items-center justify-center text-[#c4b49a]">
-        <div className="text-[#7a7060] text-sm">불러오는 중...</div>
+      <main className="min-h-screen bg-[#0C1221] flex items-center justify-center text-[#A8B8CC]">
+        <div className="text-[#4E6888] text-sm">불러오는 중...</div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#1a1816] pb-24 sm:pb-10 text-[#c4b49a]">
+    <main className="min-h-screen bg-[#0C1221] pb-10 text-[#A8B8CC]">
 
-      {/* ── 데스크탑 GNB (sm 이상) ── */}
-      <nav className="hidden sm:flex sticky top-0 z-50 w-full backdrop-blur-md bg-[#1e1c1b]/90 border-b border-[#d4b483]/10">
+      {/* ── 통합 GNB ── */}
+      <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#0F1828]/90 border-b border-[#4B7FD4]/10">
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between w-full gap-4">
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#2D5BE3] to-[#1A3A80] flex items-center justify-center">
               <ShieldCheck size={15} className="text-white" />
             </div>
-            <span className="text-sm font-semibold text-[#f0ebe0] group-hover:text-[#d4b483] transition-colors">AI 보험 분석</span>
+            <span className="text-sm font-semibold text-[#E2E8F0] group-hover:text-[#6B9FFF] transition-colors">AI 보험 분석</span>
           </Link>
 
-          <div className="flex items-center gap-1">
+          {/* 데스크탑 메뉴 */}
+          <div className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map(item => (
               <Link key={item.href} href={item.href}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all
                   ${pathname === item.href
-                    ? 'bg-[#d4b483]/15 text-[#f5d28a]'
-                    : 'text-[#7a7060] hover:text-[#c4b49a] hover:bg-white/[0.05]'}`}>
+                    ? 'bg-[#2D5BE3]/15 text-[#93B4FF]'
+                    : 'text-[#4E6888] hover:text-[#A8B8CC] hover:bg-white/[0.05]'}`}>
                 {item.icon} {item.label}
               </Link>
             ))}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden md:flex items-center gap-2 shrink-0">
             {authUser ? (
               <>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center text-[10px] font-bold text-white">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#2D5BE3] to-[#1A3A80] flex items-center justify-center text-[10px] font-bold text-white">
                     {(authUser.username || authUser.email).charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-xs text-[#c4b49a]">{authUser.username || authUser.email}</span>
+                  <span className="text-xs text-[#A8B8CC]">{authUser.username || authUser.email}</span>
                 </div>
                 <button onClick={handleLogout}
-                  className="flex items-center gap-1 text-xs text-[#7a7060] hover:text-[#d4b483] border border-[#d4b483]/20 rounded-lg px-3 py-1.5 hover:border-[#d4b483]/40 transition-colors cursor-pointer">
+                  className="flex items-center gap-1 text-xs text-[#4E6888] hover:text-[#6B9FFF] border border-[#4B7FD4]/20 rounded-lg px-3 py-1.5 hover:border-[#4B7FD4]/40 transition-colors cursor-pointer">
                   <LogOut size={12} /> 로그아웃
                 </button>
               </>
             ) : (
               <>
-                <Link href="/login" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors px-2 py-1.5 flex items-center gap-1">
+                <Link href="/login" className="text-xs text-[#4E6888] hover:text-[#6B9FFF] transition-colors px-2 py-1.5 flex items-center gap-1">
                   <LogIn size={13} /> 로그인
                 </Link>
-                <Link href="/register" className="flex items-center gap-1 text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1.5 hover:bg-[#d4b483]/10 transition-colors">
+                <Link href="/register" className="flex items-center gap-1 text-xs text-[#6B9FFF] border border-[#4B7FD4]/30 rounded-lg px-3 py-1.5 hover:bg-[#2D5BE3]/10 transition-colors">
                   <UserPlus size={13} /> 회원가입
                 </Link>
               </>
             )}
           </div>
+
+          {/* 모바일 햄버거 */}
+          <button className="md:hidden text-[#6B9FFF] cursor-pointer p-1 ml-auto"
+            onClick={() => setMobileMenuOpen(v => !v)}>
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {/* 모바일 드롭다운 */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#0C1221] border-t border-[#4B7FD4]/10 px-5 py-4 flex flex-col gap-1">
+            {NAV_ITEMS.map(item => (
+              <Link key={item.href} href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all
+                  ${pathname === item.href
+                    ? 'bg-[#2D5BE3]/15 text-[#93B4FF]'
+                    : 'text-[#4E6888] hover:text-[#A8B8CC] hover:bg-white/[0.04]'}`}>
+                {item.icon} {item.label}
+              </Link>
+            ))}
+            <div className="border-t border-[#4B7FD4]/10 mt-2 pt-3">
+              {authUser ? (
+                <button onClick={() => { handleLogout(); setMobileMenuOpen(false) }}
+                  className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm text-[#4E6888] hover:text-rose-400 hover:bg-rose-500/[0.05] transition-all cursor-pointer w-full">
+                  <LogOut size={16} /> 로그아웃
+                </button>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm text-[#4E6888] hover:text-[#A8B8CC] hover:bg-white/[0.04] transition-all">
+                    <LogIn size={16} /> 로그인
+                  </Link>
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm text-[#6B9FFF] hover:bg-[#2D5BE3]/10 transition-all">
+                    <UserPlus size={16} /> 회원가입
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* ── 모바일 상단 헤더 (sm 미만) ── */}
-      <div className="sm:hidden flex items-center justify-between px-5 pt-12 pb-4 bg-[#1e1c1b] border-b border-[#d4b483]/10">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
-            <ShieldCheck size={15} className="text-white" />
-          </div>
-          <span className="text-sm font-semibold text-[#f0ebe0]">AI 보험 분석</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {authUser ? (
-            <button onClick={handleLogout} className="text-xs text-[#7a7060] cursor-pointer">로그아웃</button>
-          ) : (
-            <Link href="/login" className="text-xs text-[#d4b483]">로그인</Link>
-          )}
-        </div>
-      </div>
-
       {/* ── 페이지 타이틀 영역 ── */}
-      <div className="bg-[#1e1c1a] border-b border-[#d4b483]/10">
+      <div className="bg-[#0F1828] border-b border-[#4B7FD4]/10">
         <div className="max-w-6xl mx-auto px-5 pt-6 pb-5">
-          <h1 className="text-2xl font-bold text-[#f0ebe0] mb-1">분석 내역</h1>
-          <p className="text-xs text-[#5a5040]">총 {analyses.length}개의 분석 결과가 저장되어 있습니다</p>
+          <h1 className="text-2xl font-bold text-[#E2E8F0] mb-1">분석 내역</h1>
+          <p className="text-xs text-[#2D4060]">총 {analyses.length}개의 분석 결과가 저장되어 있습니다</p>
 
           {analyses.length > 0 && (
             <div className="relative mt-4 max-w-md">
@@ -231,7 +257,7 @@ export default function DashboardPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="제목으로 검색"
-                className="w-full bg-white/[0.06] border border-[#d4b483]/15 rounded-2xl px-4 py-3 text-sm text-[#f0ebe0] placeholder:text-[#5a5040] outline-none focus:border-[#d4b483]/40 transition-colors"
+                className="w-full bg-white/[0.06] border border-[#4B7FD4]/15 rounded-2xl px-4 py-3 text-sm text-[#E2E8F0] placeholder:text-[#2D4060] outline-none focus:border-[#4B7FD4]/40 transition-colors"
               />
               {search && (
                 <button onClick={() => setSearch('')}
@@ -242,37 +268,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 모바일 하단 탭바 ── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1e1c1b]/95 backdrop-blur-md border-t border-[#d4b483]/10">
-        <div className="flex items-center justify-around h-16 px-2">
-          {NAV_ITEMS.map(item => (
-            <Link key={item.href} href={item.href}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all
-                ${pathname === item.href
-                  ? 'text-[#f5d28a]'
-                  : 'text-[#5a5040] hover:text-[#c4b49a]'}`}>
-              {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
-
       {/* 컨텐츠 */}
       <div className="max-w-6xl mx-auto px-4 pt-5">
 
         {analyses.length === 0 ? (
           <div className="mt-20 text-center">
             <div className="text-5xl mb-4">📋</div>
-            <p className="text-[#7a7060] text-base mb-2">분석 내역이 없습니다</p>
-            <p className="text-[#5a5040] text-sm mb-6">보험을 분석하면 여기에 저장됩니다</p>
-            <Link href="/" className="inline-block px-6 py-3 bg-[#d4b483]/15 border border-[#d4b483]/30 rounded-2xl text-[#d4b483] text-sm font-medium">
+            <p className="text-[#4E6888] text-base mb-2">분석 내역이 없습니다</p>
+            <p className="text-[#2D4060] text-sm mb-6">보험을 분석하면 여기에 저장됩니다</p>
+            <Link href="/" className="inline-block px-6 py-3 bg-[#2D5BE3]/15 border border-[#4B7FD4]/30 rounded-2xl text-[#6B9FFF] text-sm font-medium">
               분석 시작하기
             </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="mt-10 text-center">
-            <p className="text-[#7a7060] text-sm">"{search}" 검색 결과가 없습니다.</p>
+            <p className="text-[#4E6888] text-sm">"{search}" 검색 결과가 없습니다.</p>
           </div>
         ) : (
           <>
@@ -286,7 +296,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={a.id}
-                    className={`bg-[#242220] rounded-3xl overflow-hidden border flex flex-col ${rs?.bar ?? 'border-[#d4b483]/10'}`}
+                    className={`bg-[#131F35] rounded-3xl overflow-hidden border flex flex-col ${rs?.bar ?? 'border-[#4B7FD4]/10'}`}
                     style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.4)' }}
                   >
                     {/* 카드 상단 */}
@@ -294,10 +304,10 @@ export default function DashboardPage() {
                       <div className="flex items-start justify-between gap-2 mb-4">
                         {/* 제목 + 정보 */}
                         <div className="min-w-0 flex-1">
-                          <h2 className="text-base font-bold text-[#f0ebe0] leading-snug truncate">
+                          <h2 className="text-base font-bold text-[#E2E8F0] leading-snug truncate">
                             {a.title || '제목 없음'}
                           </h2>
-                          <p className="text-xs text-[#5a5040] mt-1 leading-relaxed">
+                          <p className="text-xs text-[#2D4060] mt-1 leading-relaxed">
                             {[a.gender, a.age, a.job].filter(Boolean).join(' · ')}
                           </p>
                         </div>
@@ -315,28 +325,28 @@ export default function DashboardPage() {
                           <div className="relative">
                             <button
                               onClick={() => setOpenMenu(isMenuOpen ? null : a.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-xl text-[#7a7060] hover:text-[#c4b49a] hover:bg-white/[0.08] transition-colors cursor-pointer text-lg"
+                              className="w-8 h-8 flex items-center justify-center rounded-xl text-[#4E6888] hover:text-[#A8B8CC] hover:bg-white/[0.08] transition-colors cursor-pointer text-lg"
                             >
                               ⋮
                             </button>
 
                             {isMenuOpen && (
-                              <div className="absolute right-0 top-10 z-20 w-40 bg-[#2e2c2a] border border-[#d4b483]/20 rounded-2xl shadow-2xl overflow-hidden">
+                              <div className="absolute right-0 top-10 z-20 w-40 bg-[#182340] border border-[#4B7FD4]/20 rounded-2xl shadow-2xl overflow-hidden">
                                 <Link
                                   href={`/report/${a.id}`}
                                   target="_blank"
                                   onClick={() => setOpenMenu(null)}
-                                  className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#c4b49a] hover:bg-white/[0.06] transition-colors"
+                                  className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#A8B8CC] hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span>📄</span> 결과 보기
                                 </Link>
                                 <button
                                   onClick={() => { setSelected(isOpen ? null : a); setOpenMenu(null) }}
-                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[#c4b49a] hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[#A8B8CC] hover:bg-white/[0.06] transition-colors cursor-pointer"
                                 >
                                   <span>🤖</span> AI 요약
                                 </button>
-                                <div className="border-t border-[#d4b483]/10 mx-3" />
+                                <div className="border-t border-[#4B7FD4]/10 mx-3" />
                                 <button
                                   onClick={() => { setConfirmId(a.id); setOpenMenu(null) }}
                                   className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
@@ -351,28 +361,29 @@ export default function DashboardPage() {
 
                       {/* 핵심 지표 */}
                       {summary && (
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
-                            <div className="text-base font-bold text-emerald-400 leading-tight">{summary.estimatedMonthlySavings}</div>
-                            <div className="text-[11px] text-[#5a5040] mt-1">월 절약</div>
+                        <div className="flex rounded-2xl overflow-hidden"
+                          style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <div className="flex-1 flex flex-col items-center justify-center py-4 px-1 min-w-0">
+                            <span className="text-[15px] font-bold leading-none tracking-tight whitespace-nowrap truncate max-w-full px-1" style={{ color: '#22C55E' }}>{summary.estimatedMonthlySavings}</span>
+                            <span className="text-[15px] mt-2 font-medium" style={{ color: '#9CA3AF' }}>월 절약</span>
                           </div>
-                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
-                            <div className="text-base font-bold text-rose-400 leading-tight">{summary.duplicateCount}</div>
-                            <div className="text-[11px] text-[#5a5040] mt-1">중복 항목</div>
+                          <div className="flex-1 flex flex-col items-center justify-center py-4 px-1 min-w-0">
+                            <span className="text-xl font-bold leading-none" style={{ color: '#EF4444' }}>{summary.duplicateCount}</span>
+                            <span className="text-[15px] mt-2 font-medium" style={{ color: '#9CA3AF' }}>중복 항목</span>
                           </div>
-                          <div className="bg-[#1a1816] rounded-2xl p-3 text-center">
-                            <div className="text-base font-bold text-[#d4b483] leading-tight">{summary.totalPolicies}</div>
-                            <div className="text-[11px] text-[#5a5040] mt-1">총 보험</div>
+                          <div className="flex-1 flex flex-col items-center justify-center py-4 px-1 min-w-0">
+                            <span className="text-xl font-bold leading-none" style={{ color: '#D4AF37' }}>{summary.totalPolicies}</span>
+                            <span className="text-[15px] mt-2 font-medium" style={{ color: '#9CA3AF' }}>총 보험</span>
                           </div>
                         </div>
                       )}
                     </div>
 
                     {/* 날짜 + 파일 */}
-                    <div className="px-5 py-3 flex items-center justify-between border-t border-[#d4b483]/08">
-                      <span className="text-xs text-[#5a5040]">{formatDate(a.createdAt)}</span>
+                    <div className="px-5 py-3 flex items-center justify-between border-t border-[#4B7FD4]/08">
+                      <span className="text-xs text-[#2D4060]">{formatDate(a.createdAt)}</span>
                       {a.fileNames && (
-                        <span className="text-xs text-[#5a5040] truncate max-w-[120px]">📎 {truncateFiles(a.fileNames)}</span>
+                        <span className="text-xs text-[#2D4060] truncate max-w-[120px]">📎 {truncateFiles(a.fileNames)}</span>
                       )}
                     </div>
 
@@ -381,13 +392,13 @@ export default function DashboardPage() {
                       <Link
                         href={`/report/${a.id}`}
                         target="_blank"
-                        className="flex items-center justify-center py-3 bg-[#d4b483] rounded-2xl text-[#1a1410] text-sm font-bold transition-opacity hover:opacity-90"
+                        className="flex items-center justify-center py-3 bg-[#2D5BE3] rounded-2xl text-[#1a1410] text-sm font-bold transition-opacity hover:opacity-90"
                       >
                         결과 보기
                       </Link>
                       <button
                         onClick={() => setSelected(isOpen ? null : a)}
-                        className="flex items-center justify-center py-3 bg-white/[0.06] border border-[#d4b483]/20 rounded-2xl text-[#c4b49a] text-sm font-medium hover:bg-white/[0.1] transition-colors cursor-pointer"
+                        className="flex items-center justify-center py-3 bg-white/[0.06] border border-[#4B7FD4]/20 rounded-2xl text-[#A8B8CC] text-sm font-medium hover:bg-white/[0.1] transition-colors cursor-pointer"
                       >
                         {isOpen ? '접기 ▲' : 'AI 요약 ▼'}
                       </button>
@@ -395,17 +406,17 @@ export default function DashboardPage() {
 
                     {/* AI 요약 펼침 */}
                     {isOpen && a.result && (
-                      <div className="border-t border-[#d4b483]/10 mx-4 mb-4 pt-4 space-y-3">
+                      <div className="border-t border-[#4B7FD4]/10 mx-4 mb-4 pt-4 space-y-3">
                         {a.result.aiSummary && (
                           <div>
-                            <p className="text-xs font-bold text-[#d4b483] mb-1.5">AI 요약</p>
-                            <p className="text-sm text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.aiSummary}</p>
+                            <p className="text-xs font-bold text-[#6B9FFF] mb-1.5">AI 요약</p>
+                            <p className="text-sm text-[#A8B8CC] leading-relaxed whitespace-pre-wrap">{a.result.aiSummary}</p>
                           </div>
                         )}
                         {a.result.recommendation && (
                           <div>
-                            <p className="text-xs font-bold text-[#d4b483] mb-1.5">추천</p>
-                            <p className="text-sm text-[#c4b49a] leading-relaxed whitespace-pre-wrap">{a.result.recommendation}</p>
+                            <p className="text-xs font-bold text-[#6B9FFF] mb-1.5">추천</p>
+                            <p className="text-sm text-[#A8B8CC] leading-relaxed whitespace-pre-wrap">{a.result.recommendation}</p>
                           </div>
                         )}
                       </div>
@@ -415,7 +426,7 @@ export default function DashboardPage() {
               })}
             </div>
 
-            <p className="text-center text-xs text-[#4a4035] mt-6">
+            <p className="text-center text-xs text-[#1A2A40] mt-6">
               {search ? `${filtered.length}개 검색됨 (전체 ${analyses.length}개)` : `총 ${analyses.length}개`}
             </p>
           </>
@@ -430,18 +441,18 @@ export default function DashboardPage() {
           onClick={() => setConfirmId(null)}
         >
           <div
-            className="w-full sm:max-w-sm bg-[#242220] rounded-t-3xl sm:rounded-3xl p-6 border border-[#d4b483]/15"
+            className="w-full sm:max-w-sm bg-[#131F35] rounded-t-3xl sm:rounded-3xl p-6 border border-[#4B7FD4]/15"
             onClick={e => e.stopPropagation()}
           >
             <div className="text-center mb-5">
               <div className="text-4xl mb-3">🗑️</div>
-              <h3 className="text-base font-bold text-[#f0ebe0] mb-1">분석 내역을 삭제할까요?</h3>
-              <p className="text-sm text-[#7a7060]">삭제된 데이터는 복구되지 않습니다.</p>
+              <h3 className="text-base font-bold text-[#E2E8F0] mb-1">분석 내역을 삭제할까요?</h3>
+              <p className="text-sm text-[#4E6888]">삭제된 데이터는 복구되지 않습니다.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setConfirmId(null)}
-                className="py-3.5 rounded-2xl bg-white/[0.06] border border-[#d4b483]/15 text-[#c4b49a] text-sm font-medium cursor-pointer hover:bg-white/[0.1] transition-colors"
+                className="py-3.5 rounded-2xl bg-white/[0.06] border border-[#4B7FD4]/15 text-[#A8B8CC] text-sm font-medium cursor-pointer hover:bg-white/[0.1] transition-colors"
               >
                 취소
               </button>
@@ -458,13 +469,13 @@ export default function DashboardPage() {
 
       {/* 토스트 */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#2e2c2a] border border-[#d4b483]/20 rounded-2xl px-5 py-3.5 shadow-2xl"
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#182340] border border-[#4B7FD4]/20 rounded-2xl px-5 py-3.5 shadow-2xl"
           style={{ minWidth: '240px' }}>
-          <span className="text-sm text-[#f0ebe0] flex-1">{toast.message}</span>
+          <span className="text-sm text-[#E2E8F0] flex-1">{toast.message}</span>
           {toast.deletedItem && (
             <button
               onClick={handleUndo}
-              className="text-sm text-[#d4b483] font-bold hover:text-[#f5d060] transition-colors cursor-pointer shrink-0"
+              className="text-sm text-[#6B9FFF] font-bold hover:text-[#f5d060] transition-colors cursor-pointer shrink-0"
             >
               실행 취소
             </button>

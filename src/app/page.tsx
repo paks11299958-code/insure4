@@ -1,93 +1,147 @@
 'use client'
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { Bell, ShieldCheck, Home as HomeIcon, LayoutDashboard, Sparkles, ChevronDown, LogOut, LogIn, UserPlus } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-
-interface Duplicate {
-  item: string; policies: string; coverageA: string; coverageB: string
-  type: string; monthlySavings: string; severity: string; action: string
-}
-interface AnalysisResult {
-  summary: { totalPolicies: number; duplicateCount: number; estimatedMonthlySavings: string; riskLevel: string }
-  duplicates: Duplicate[]; aiSummary: string; recommendation: string; disclaimer: string
-}
-interface UploadedFile { file: File; name: string; size: number }
-interface UserInfo { title: string; gender: string; age: string; job: string; health: string; purpose: string; budget: string }
-
-const STEPS = ['파일 변환 중...', 'AI가 문서를 읽는 중...', '보장 항목 추출 중...', '중복 패턴 분석 중...', '보고서 생성 중...']
-
-const fmtSize = (b: number) => b < 1024 ? b+'B' : b < 1048576 ? (b/1024).toFixed(1)+'KB' : (b/1048576).toFixed(1)+'MB'
-const isPDF = (n: string) => /\.pdf$/i.test(n)
-const isImage = (n: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(n)
-const fileIcon = (n: string) => isPDF(n) ? '📕' : isImage(n) ? '🖼️' : /\.docx?$/i.test(n) ? '📘' : '📄'
-const getMediaType = (n: string) => /\.png$/i.test(n) ? 'image/png' : /\.gif$/i.test(n) ? 'image/gif' : /\.webp$/i.test(n) ? 'image/webp' : 'image/jpeg'
-
-async function toBase64(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const r = new FileReader()
-    r.onload = e => res(((e.target?.result as string) || '').split(',')[1] || '')
-    r.onerror = () => rej(new Error('파일 읽기 실패'))
-    r.readAsDataURL(file)
-  })
-}
-async function toText(file: File): Promise<string> {
-  return new Promise(res => {
-    const r = new FileReader()
-    r.onload = e => res((e.target?.result as string) || '')
-    r.onerror = () => res('')
-    r.readAsText(file, 'utf-8')
-  })
-}
-
-// 따뜻한 골드 베이지 테마 입력창 공통 스타일
-const inputCls = 'w-full bg-white/[0.06] border border-[#d4b483]/25 rounded-xl px-3 py-2 text-[#f0ebe0] text-sm placeholder:text-[#9a8e7a] outline-none focus:border-[#d4b483]/70 focus:bg-[#d4b483]/[0.06] transition-colors'
+import { ArrowRight, Menu, X, LogOut, LogIn, UserPlus, LayoutDashboard, Sparkles } from 'lucide-react'
 
 interface AuthUser { id: number; email: string; username?: string }
 
-export default function Home() {
-  const pathname = usePathname()
-  const [files, setFiles] = useState<UploadedFile[]>([])
-  const [dragging, setDragging] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [stepMsg, setStepMsg] = useState(STEPS[0])
-  const [stepIdx, setStepIdx] = useState(0)
-  const [error, setError] = useState('')
-  const [result, setResult] = useState<AnalysisResult | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const ivRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [userInfo, setUserInfo] = useState<UserInfo>({ title: '', gender: '', age: '', job: '', health: '', purpose: '', budget: '' })
+/* ── SVG 아이콘: AIPD 로고 엠블럼 ── */
+function AIPDEmblem({ size = 56 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 60 60" fill="none">
+      {/* 외곽 링 */}
+      <circle cx="30" cy="30" r="28" stroke="#4B7FD4" strokeWidth="1.2" strokeDasharray="3 2" opacity="0.5" />
+      <circle cx="30" cy="30" r="22" stroke="#2D5BE3" strokeWidth="0.8" opacity="0.3" />
+      {/* 네트워크 노드 연결선 */}
+      <line x1="30" y1="8" x2="48" y2="22" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="30" y1="8" x2="12" y2="22" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="48" y1="22" x2="48" y2="38" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="12" y1="22" x2="12" y2="38" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="48" y1="38" x2="30" y2="52" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="12" y1="38" x2="30" y2="52" stroke="#4B7FD4" strokeWidth="0.9" opacity="0.6" />
+      <line x1="30" y1="8" x2="30" y2="52" stroke="#2D5BE3" strokeWidth="0.6" opacity="0.3" />
+      <line x1="12" y1="22" x2="48" y2="38" stroke="#2D5BE3" strokeWidth="0.6" opacity="0.3" />
+      <line x1="48" y1="22" x2="12" y2="38" stroke="#2D5BE3" strokeWidth="0.6" opacity="0.3" />
+      {/* 노드 포인트 */}
+      <circle cx="30" cy="8" r="2.5" fill="#306FFF" />
+      <circle cx="48" cy="22" r="2" fill="#4B7FD4" />
+      <circle cx="12" cy="22" r="2" fill="#4B7FD4" />
+      <circle cx="48" cy="38" r="2" fill="#4B7FD4" />
+      <circle cx="12" cy="38" r="2" fill="#4B7FD4" />
+      <circle cx="30" cy="52" r="2" fill="#4B7FD4" />
+      {/* 중앙 육각형 */}
+      <polygon points="30,20 37,24 37,32 30,36 23,32 23,24" fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.2" />
+      {/* 중앙 그래프 바 */}
+      <rect x="25.5" y="31" width="2" height="3" rx="0.5" fill="#4B7FD4" opacity="0.8" />
+      <rect x="29" y="28" width="2" height="6" rx="0.5" fill="#306FFF" />
+      <rect x="32.5" y="25" width="2" height="9" rx="0.5" fill="#D4AF37" />
+      {/* 골드 중앙 포인트 */}
+      <circle cx="30" cy="30" r="1.5" fill="#D4AF37" />
+    </svg>
+  )
+}
+
+/* ── SVG 아이콘: 클라우드 업로드 + 서버랙 ── */
+function IconUpload() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+      {/* 서버 랙 */}
+      <rect x="10" y="34" width="32" height="5" rx="1.5" fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.2" />
+      <rect x="10" y="41" width="32" height="5" rx="1.5" fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.2" />
+      <circle cx="37" cy="36.5" r="1.2" fill="#22C55E" />
+      <circle cx="37" cy="43.5" r="1.2" fill="#D4AF37" />
+      <line x1="14" y1="36.5" x2="32" y2="36.5" stroke="#4B7FD4" strokeWidth="0.8" opacity="0.5" />
+      <line x1="14" y1="43.5" x2="32" y2="43.5" stroke="#4B7FD4" strokeWidth="0.8" opacity="0.5" />
+      {/* 클라우드 */}
+      <path d="M18 28 Q14 28 14 23 Q14 18 19 18 Q19.5 14 24 14 Q28 14 29 17 Q33 17 33 22 Q33 28 28 28 Z"
+        fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.3" strokeLinejoin="round" />
+      {/* 업로드 화살표 */}
+      <line x1="23" y1="26" x2="23" y2="19" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round" />
+      <polyline points="20,21.5 23,18.5 26,21.5" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* 연결선 */}
+      <line x1="23" y1="28" x2="23" y2="34" stroke="#4B7FD4" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+    </svg>
+  )
+}
+
+/* ── SVG 아이콘: 돋보기 + 데이터 노드 ── */
+function IconDetect() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+      {/* 돋보기 원 */}
+      <circle cx="22" cy="22" r="14" fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.5" />
+      <circle cx="22" cy="22" r="10" stroke="#2D5BE3" strokeWidth="0.7" opacity="0.4" strokeDasharray="2 2" />
+      {/* 돋보기 안 네트워크 노드 */}
+      <circle cx="22" cy="17" r="1.8" fill="#306FFF" />
+      <circle cx="16" cy="25" r="1.5" fill="#4B7FD4" />
+      <circle cx="28" cy="25" r="1.5" fill="#4B7FD4" />
+      <circle cx="22" cy="28" r="1.5" fill="#D4AF37" />
+      <line x1="22" y1="17" x2="16" y2="25" stroke="#4B7FD4" strokeWidth="1" opacity="0.7" />
+      <line x1="22" y1="17" x2="28" y2="25" stroke="#4B7FD4" strokeWidth="1" opacity="0.7" />
+      <line x1="16" y1="25" x2="22" y2="28" stroke="#4B7FD4" strokeWidth="1" opacity="0.7" />
+      <line x1="28" y1="25" x2="22" y2="28" stroke="#4B7FD4" strokeWidth="1" opacity="0.7" />
+      {/* 돋보기 손잡이 */}
+      <line x1="33" y1="33" x2="43" y2="43" stroke="#4B7FD4" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="33" y1="33" x2="43" y2="43" stroke="#D4AF37" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+    </svg>
+  )
+}
+
+/* ── SVG 아이콘: 리포트 북 + 그래프 + 별 ── */
+function IconReport() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+      {/* 책 왼쪽 페이지 */}
+      <path d="M8 10 Q8 8 10 8 L24 8 L24 44 L10 44 Q8 44 8 42 Z"
+        fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.2" />
+      {/* 책 오른쪽 페이지 */}
+      <path d="M44 10 Q44 8 42 8 L28 8 L28 44 L42 44 Q44 44 44 42 Z"
+        fill="#0F1828" stroke="#4B7FD4" strokeWidth="1.2" />
+      {/* 책 가운데 */}
+      <line x1="26" y1="8" x2="26" y2="44" stroke="#2D5BE3" strokeWidth="1.5" />
+      {/* 왼쪽 바 차트 */}
+      <rect x="12" y="30" width="3" height="8" rx="0.5" fill="#4B7FD4" opacity="0.7" />
+      <rect x="17" y="25" width="3" height="13" rx="0.5" fill="#306FFF" />
+      {/* 오른쪽 라인 차트 */}
+      <polyline points="30,36 34,28 38,32 42,22" stroke="#4B7FD4" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="30" cy="36" r="1.2" fill="#4B7FD4" />
+      <circle cx="34" cy="28" r="1.2" fill="#4B7FD4" />
+      <circle cx="38" cy="32" r="1.2" fill="#4B7FD4" />
+      <circle cx="42" cy="22" r="1.5" fill="#D4AF37" />
+      {/* 별 장식 */}
+      <path d="M20 16 L21 19 L24 19 L21.5 21 L22.5 24 L20 22 L17.5 24 L18.5 21 L16 19 L19 19 Z"
+        fill="#D4AF37" opacity="0.9" />
+      {/* 텍스트 라인 */}
+      <line x1="30" y1="40" x2="42" y2="40" stroke="#4B7FD4" strokeWidth="0.8" opacity="0.5" />
+      <line x1="30" y1="43" x2="39" y2="43" stroke="#4B7FD4" strokeWidth="0.8" opacity="0.3" />
+    </svg>
+  )
+}
+
+const FEATURES = [
+  {
+    icon: <IconUpload />,
+    title: '간편 문서 업로드',
+    desc: 'PDF, 이미지, 텍스트 파일을 드래그 앤 드롭으로 간편하게 업로드할 수 있습니다.',
+  },
+  {
+    icon: <IconDetect />,
+    title: '중복 항목 정밀 검토',
+    desc: 'AI가 보장 항목을 정밀 분석하여 중복 구간을 자동으로 탐지합니다.',
+  },
+  {
+    icon: <IconReport />,
+    title: '절감 리포트 & 맞춤 제안',
+    desc: '절감 가능 금액과 맞춤형 보험 최적화 제안을 리포트로 제공합니다.',
+  },
+]
+
+export default function LandingPage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
-  const [showEmptyWarning, setShowEmptyWarning] = useState(false)
-  const [emptyFields, setEmptyFields] = useState<string[]>([])
-  const titleRef = useRef<HTMLInputElement>(null)
-  const genderRef = useRef<HTMLInputElement>(null)
-  const ageRef = useRef<HTMLInputElement>(null)
-  const jobRef = useRef<HTMLInputElement>(null)
-  const healthRef = useRef<HTMLInputElement>(null)
-  const purposeRef = useRef<HTMLInputElement>(null)
-  const budgetRef = useRef<HTMLInputElement>(null)
-  const [autoPurpose, setAutoPurpose] = useState(false)
-  const [autoTitle, setAutoTitle] = useState(false)
-  const [showLoginModal, setShowLoginModal] = useState(false)
-  const [restoredInfo, setRestoredInfo] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(u => {
-      setAuthUser(u)
-      // 로그인 후 복귀했을 때 저장된 userInfo 복원
-      if (u?.id) {
-        const saved = sessionStorage.getItem('pendingUserInfo')
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved)
-            setUserInfo(parsed)
-            setRestoredInfo(true)
-            sessionStorage.removeItem('pendingUserInfo')
-          } catch { /* 무시 */ }
-        }
-      }
-    })
+    fetch('/api/auth/me').then(r => r.json()).then(u => { if (u?.id) setAuthUser(u) })
   }, [])
 
   const handleLogout = async () => {
@@ -95,659 +149,276 @@ export default function Home() {
     setAuthUser(null)
   }
 
-  const MAX_FILES = 5
-
-  const addFiles = useCallback((list: FileList | File[]) => {
-    setFiles(prev => {
-      const names = new Set(prev.map(f => f.name))
-      const newFiles = Array.from(list).filter(f => !names.has(f.name)).map(f => ({ file: f, name: f.name, size: f.size }))
-      return [...prev, ...newFiles].slice(0, MAX_FILES)
-    })
-  }, [])
-
-  const FIELD_LABELS: Record<keyof UserInfo, string> = { title: '제목', gender: '성별', age: '연령', job: '직업', health: '건강', purpose: '목적', budget: '예산' }
-
-  const handleAnalyzeClick = () => {
-    // 비로그인 체크
-    if (!authUser) { setShowLoginModal(true); return }
-    const empty = (Object.keys(userInfo) as (keyof UserInfo)[]).filter(k => !userInfo[k].trim())
-    if (empty.length > 0) { setEmptyFields(empty); setShowEmptyWarning(true); return }
-    analyze()
-  }
-
-  const handleLoginModalGo = (path: '/login' | '/register') => {
-    // userInfo를 sessionStorage에 저장 후 이동
-    sessionStorage.setItem('pendingUserInfo', JSON.stringify(userInfo))
-    window.location.href = path
-  }
-
-  const handleWarningProceed = () => { setShowEmptyWarning(false); analyze() }
-
-  const handleWarningCancel = () => {
-    setShowEmptyWarning(false)
-    const first = emptyFields[0] as keyof UserInfo
-    setTimeout(() => {
-      if (first === 'title') titleRef.current?.focus()
-      else if (first === 'gender') genderRef.current?.focus()
-      else if (first === 'age') ageRef.current?.focus()
-      else if (first === 'job') jobRef.current?.focus()
-      else if (first === 'health') healthRef.current?.focus()
-      else if (first === 'budget') budgetRef.current?.focus()
-      else if (first === 'purpose') purposeRef.current?.focus()
-    }, 50)
-  }
-
-  const analyze = async () => {
-    setError(''); setResult(null); setLoading(true); setStepIdx(0); setStepMsg(STEPS[0])
-    let si = 0
-    ivRef.current = setInterval(() => { si = (si + 1) % STEPS.length; setStepIdx(si); setStepMsg(STEPS[si]) }, 2000)
-
-    try {
-      const pdfFiles = files.filter(f => isPDF(f.name))
-      const imgFiles = files.filter(f => isImage(f.name))
-      const txtFiles = files.filter(f => !isPDF(f.name) && !isImage(f.name))
-      const fileNames = files.map(f => f.name)
-      let body: Record<string, unknown>
-
-      if (pdfFiles.length > 0) {
-        setStepMsg('PDF를 AI에 전달 중...')
-        const pdfs = await Promise.all(pdfFiles.map(async f => ({ data: await toBase64(f.file), name: f.name })))
-        let extraText = ''
-        for (const f of txtFiles) extraText += `\n\n=== ${f.name} ===\n${(await toText(f.file)).slice(0, 3000)}`
-        body = { pdfs, fileNames, text: extraText, userInfo }
-      } else if (imgFiles.length > 0) {
-        setStepMsg('이미지에서 보험 내용 추출 중...')
-        const images = await Promise.all(imgFiles.map(async f => ({ data: await toBase64(f.file), mediaType: getMediaType(f.name) })))
-        let extraText = ''
-        for (const f of txtFiles) extraText += `\n\n=== ${f.name} ===\n${(await toText(f.file)).slice(0, 3000)}`
-        body = { images, fileNames, text: extraText, userInfo }
-      } else {
-        let combined = ''
-        for (const f of txtFiles) combined += `\n\n=== ${f.name} ===\n${(await toText(f.file)).slice(0, 4000)}`
-        body = { text: combined, fileNames, userInfo }
-      }
-
-      setStepMsg('AI 중복 분석 중...')
-      const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `오류 ${res.status}`)
-      setResult(data)
-
-      // 로그인 상태면 분석 결과 자동 저장
-      if (authUser) {
-        fetch('/api/analyses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userInfo, fileNames, result: data }),
-        }).catch(() => {})
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '알 수 없는 오류')
-    } finally {
-      if (ivRef.current) clearInterval(ivRef.current)
-      setLoading(false)
-    }
-  }
-
-  const exportPdf = () => {
-    if (!result) return
-    const date = new Date().toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    const sevClass = (s: string) => s === '높음' ? 'badge-high' : s === '중간' ? 'badge-mid' : 'badge-low'
-    const dupRows = result.duplicates.length === 0
-      ? `<tr><td colspan="6" style="text-align:center;color:#888;padding:8mm 0">중복 보장 항목이 발견되지 않았습니다</td></tr>`
-      : result.duplicates.map(d => `
-        <tr>
-          <td><strong>${d.item}</strong><br/><span style="color:#888;font-size:8pt">${d.action}</span></td>
-          <td>${d.policies}</td>
-          <td><span class="cov-a">A: ${d.coverageA}</span><br/><span class="cov-b">B: ${d.coverageB}</span></td>
-          <td>${d.type}</td>
-          <td style="color:#92400e;font-weight:500">${d.monthlySavings}</td>
-          <td><span class="badge ${sevClass(d.severity)}">${d.severity}</span></td>
-        </tr>`).join('')
-
-    const html = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<title>보험 중복 분석 보고서</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Noto Sans KR',sans-serif;background:#fff;color:#1a1a1a;padding:18mm 20mm;font-size:10.5pt;line-height:1.6}
-  .title-row{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #c4974a;padding-bottom:3mm;margin-bottom:5mm}
-  .title-row h1{font-size:17pt;font-weight:700;color:#1a1a1a}
-  .title-row .meta{font-size:8.5pt;color:#888;text-align:right;line-height:1.8}
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:6mm}
-  .card{border:1px solid #e0d8c8;border-radius:6px;padding:3.5mm 4mm;text-align:center}
-  .card .val{font-size:16pt;font-weight:700;color:#1a1a1a}
-  .card .val.red{color:#b91c1c}.card .val.amber{color:#92400e}.card .val.risk-high{color:#b91c1c}.card .val.risk-mid{color:#92400e}.card .val.risk-low{color:#166534}
-  .card .lbl{font-size:8pt;color:#888;margin-top:1mm}
-  .section-title{font-size:9pt;font-weight:600;color:#7a5c2e;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2.5mm;margin-top:5mm}
-  .ai-box{background:#fdf8f0;border:1px solid #e8d8b0;border-left:3px solid #c4974a;border-radius:6px;padding:4mm 5mm;font-size:9.5pt;line-height:1.8;color:#444;margin-bottom:5mm}
-  table{width:100%;border-collapse:collapse;margin-bottom:5mm;font-size:8.5pt}
-  th{background:#f5f2ec;border:1px solid #e0d8c8;padding:2mm 3mm;text-align:left;font-weight:600;color:#555;white-space:nowrap}
-  td{border:1px solid #e0d8c8;padding:2.5mm 3mm;vertical-align:top;color:#333}
-  tr:nth-child(even) td{background:#fafaf8}
-  .badge{display:inline-block;padding:0.5mm 2.5mm;border-radius:3px;font-size:8pt;font-weight:500}
-  .badge-high{background:#fee2e2;color:#991b1b}.badge-mid{background:#fef3c7;color:#92400e}.badge-low{background:#d1fae5;color:#065f46}
-  .cov-a{color:#7a5c2e;display:block}.cov-b{color:#666;display:block}
-  .rec-box{background:#fdf8f0;border:1px solid #e8d8b0;border-left:3px solid #c4974a;border-radius:6px;padding:4mm 5mm;font-size:9.5pt;line-height:1.9;color:#444;margin-bottom:4mm}
-  .disc{font-size:8pt;color:#999;border:1px solid #eee;border-radius:5px;padding:3mm 4mm}
-  @media print{body{padding:12mm 14mm}@page{margin:10mm}}
-</style>
-</head>
-<body>
-<div class="title-row">
-  <h1>보험 중복 보장 분석 보고서</h1>
-  <div class="meta">분석 일시: ${date}<br/>파일: ${files.map(f => f.name).join(', ')}</div>
-</div>
-
-<div class="cards">
-  <div class="card"><div class="val red">${result.summary.duplicateCount}</div><div class="lbl">중복 보장 항목</div></div>
-  <div class="card"><div class="val">${result.summary.totalPolicies}</div><div class="lbl">분석 보험 수</div></div>
-  <div class="card"><div class="val amber">${result.summary.estimatedMonthlySavings}</div><div class="lbl">절감 예상액</div></div>
-  <div class="card"><div class="val risk-${result.summary.riskLevel === '높음' ? 'high' : result.summary.riskLevel === '중간' ? 'mid' : 'low'}">${result.summary.riskLevel}</div><div class="lbl">중복 위험도</div></div>
-</div>
-
-<div class="section-title">⬡ AI 분석 요약</div>
-<div class="ai-box">${result.aiSummary}</div>
-
-<div class="section-title">중복 보장 상세 목록</div>
-<table>
-  <thead><tr><th>중복 항목</th><th>해당 보험</th><th>보장 내용 비교</th><th>중복 유형</th><th>절감 예상</th><th>심각도</th></tr></thead>
-  <tbody>${dupRows}</tbody>
-</table>
-
-<div class="section-title">AI 권고사항</div>
-<div class="rec-box">${result.recommendation}</div>
-<div class="disc">${result.disclaimer}</div>
-
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 500))</script>
-</body>
-</html>`
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
-  }
-
-  const exportTxt = () => {
-    if (!result) return
-    const rows = result.duplicates.map(d => `${d.item}\t${d.policies}\t${d.type}\t${d.monthlySavings}\t${d.severity}`).join('\n')
-    const txt = ['보험 중복 보장 분석 보고서','='.repeat(44),`분석 일시: ${new Date().toLocaleString('ko-KR')}`,`파일: ${files.map(f=>f.name).join(', ')}`,'','[요약]',`• 분석 보험: ${result.summary.totalPolicies}개`,`• 중복 항목: ${result.summary.duplicateCount}개`,`• 절감 예상: ${result.summary.estimatedMonthlySavings}`,`• 위험도: ${result.summary.riskLevel}`,'','[AI 요약]',result.aiSummary,'','[중복 상세]','항목\t보험\t유형\t절감\t심각도',rows,'','[권고사항]',result.recommendation,'','[안내]',result.disclaimer].join('\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }))
-    a.download = `보험중복분석_${new Date().toLocaleDateString('ko-KR').replace(/\.\s*/g,'-').replace(/-$/,'')}.txt`
-    a.click()
-  }
-
-  const sevBadge = (s: string) =>
-    s === '높음' ? 'bg-rose-500/15 text-rose-400' :
-    s === '중간' ? 'bg-amber-500/15 text-amber-400' :
-    'bg-emerald-500/15 text-emerald-400'
-
-  const riskCard = (s: string) =>
-    s === '높음' ? 'border-rose-500/30 bg-rose-500/5' :
-    s === '중간' ? 'border-amber-500/30 bg-amber-500/5' :
-    'border-emerald-500/30 bg-emerald-500/5'
-
-  const riskVal = (s: string) =>
-    s === '높음' ? 'text-rose-400' :
-    s === '중간' ? 'text-amber-400' :
-    'text-emerald-400'
-
-  const NAV_ITEMS = [
-    { href: '/', icon: <HomeIcon size={18} />, label: '홈' },
-    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: '내 분석 내역' },
-    { href: '#', icon: <Sparkles size={18} />, label: '프리미엄' },
-  ]
-
   return (
-    <main className="min-h-screen bg-[#1a1816] text-[#c4b49a]">
+    <main className="min-h-screen text-[#C0C8D8] relative overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, #0A0F1E 0%, #0C1525 40%, #0A1018 100%)' }}>
 
-      {/* ── 데스크탑 GNB (sm 이상) ── */}
-      <nav className="hidden sm:flex sticky top-0 z-50 w-full backdrop-blur-md bg-[#1e1c1b]/90 border-b border-[#d4b483]/10">
-        <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between w-full gap-4">
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
-              <ShieldCheck size={15} className="text-white" />
+      {/* ── 배경 레이어 1: 스타일라이즈드 그리드 ── */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `
+          linear-gradient(rgba(75,127,212,0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(75,127,212,0.06) 1px, transparent 1px)
+        `,
+        backgroundSize: '48px 48px',
+      }} />
+
+      {/* ── 배경 레이어 2: 데이터 웨이브 (우상단 글로우) ── */}
+      <div className="absolute top-0 right-0 w-[600px] h-[500px] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 80% 10%, rgba(48,111,255,0.12) 0%, rgba(45,91,227,0.06) 40%, transparent 70%)',
+      }} />
+      {/* 보조 글로우 */}
+      <div className="absolute bottom-0 left-0 w-[400px] h-[300px] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 20% 90%, rgba(26,58,128,0.15) 0%, transparent 60%)',
+      }} />
+
+      {/* ── 배경 레이어 3: 데이터 스트림 점선 ── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[15, 35, 55, 75].map((pct, i) => (
+          <div key={i} className="absolute top-0 bottom-0" style={{
+            left: `${pct}%`,
+            width: '1px',
+            background: `linear-gradient(180deg, transparent 0%, rgba(75,127,212,0.08) 30%, rgba(75,127,212,0.12) 50%, rgba(75,127,212,0.08) 70%, transparent 100%)`,
+          }} />
+        ))}
+      </div>
+
+      {/* ── 헤더 GNB ── */}
+      <header className="sticky top-0 z-50 w-full backdrop-blur-md border-b"
+        style={{ background: 'rgba(10,15,30,0.88)', borderColor: 'rgba(75,127,212,0.12)' }}>
+        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
+
+          {/* 로고 */}
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+            <div className="relative w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #1A3A80, #2D5BE3)' }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <polygon points="9,2 16,6 16,12 9,16 2,12 2,6" fill="none" stroke="white" strokeWidth="1.2" />
+                <line x1="9" y1="2" x2="9" y2="16" stroke="white" strokeWidth="0.7" opacity="0.4" />
+                <line x1="2" y1="6" x2="16" y2="12" stroke="white" strokeWidth="0.7" opacity="0.4" />
+                <line x1="16" y1="6" x2="2" y2="12" stroke="white" strokeWidth="0.7" opacity="0.4" />
+                <circle cx="9" cy="9" r="2" fill="#D4AF37" />
+              </svg>
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: '#D4AF37' }} />
             </div>
-            <span className="text-sm font-semibold text-[#f0ebe0] group-hover:text-[#d4b483] transition-colors">AI 보험 분석</span>
+            <span className="text-sm font-semibold tracking-wide transition-colors group-hover:text-[#6B9FFF]"
+              style={{ color: '#A8B8CC' }}>AI 보험 분석</span>
           </Link>
 
-          <div className="flex items-center gap-1">
-            {NAV_ITEMS.map(item => (
-              <Link key={item.href} href={item.href}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all
-                  ${pathname === item.href
-                    ? 'bg-[#d4b483]/15 text-[#f5d28a]'
-                    : 'text-[#7a7060] hover:text-[#c4b49a] hover:bg-white/[0.05]'}`}>
-                {item.icon} {item.label}
-              </Link>
-            ))}
-          </div>
+          {/* 데스크탑 네비 */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Link href="/" className="px-4 py-2 rounded-lg text-xs font-semibold border"
+              style={{ background: 'rgba(75,127,212,0.12)', color: '#6B9FFF', borderColor: 'rgba(75,127,212,0.3)' }}>
+              홈
+            </Link>
+            <Link href="/dashboard"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:text-[#E2E8F0]"
+              style={{ color: '#4E6888' }}>
+              <LayoutDashboard size={14} /> 내 분석 내역
+            </Link>
+            <Link href="#"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:text-[#E2E8F0]"
+              style={{ color: '#4E6888' }}>
+              <Sparkles size={14} /> 프리미엄
+            </Link>
+          </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* 우측 인증 */}
+          <div className="hidden md:flex items-center gap-2 shrink-0">
             {authUser ? (
               <>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center text-[10px] font-bold text-white">
+                <div className="flex items-center gap-1.5 px-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, #2D5BE3, #1A3A80)' }}>
                     {(authUser.username || authUser.email).charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-xs text-[#c4b49a]">{authUser.username || authUser.email}</span>
+                  <span className="text-xs" style={{ color: '#4E6888' }}>{authUser.username || authUser.email}</span>
                 </div>
                 <button onClick={handleLogout}
-                  className="flex items-center gap-1 text-xs text-[#7a7060] hover:text-[#d4b483] border border-[#d4b483]/20 rounded-lg px-3 py-1.5 hover:border-[#d4b483]/40 transition-colors cursor-pointer">
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg border text-xs transition-colors cursor-pointer hover:text-[#6B9FFF]"
+                  style={{ borderColor: 'rgba(75,127,212,0.25)', color: '#4E6888' }}>
                   <LogOut size={12} /> 로그아웃
                 </button>
               </>
             ) : (
               <>
-                <Link href="/login" className="text-xs text-[#7a7060] hover:text-[#d4b483] transition-colors px-2 py-1.5 flex items-center gap-1">
+                <Link href="/login"
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:text-[#E2E8F0]"
+                  style={{ color: '#4E6888' }}>
                   <LogIn size={13} /> 로그인
                 </Link>
-                <Link href="/register" className="flex items-center gap-1 text-xs text-[#d4b483] border border-[#d4b483]/30 rounded-lg px-3 py-1.5 hover:bg-[#d4b483]/10 transition-colors">
+                <Link href="/register"
+                  className="px-4 py-2 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1 hover:opacity-90"
+                  style={{ borderColor: 'rgba(75,127,212,0.4)', color: '#6B9FFF', background: 'rgba(75,127,212,0.08)' }}>
                   <UserPlus size={13} /> 회원가입
                 </Link>
               </>
             )}
           </div>
+
+          {/* 모바일 햄버거 */}
+          <button className="md:hidden cursor-pointer p-1" style={{ color: '#6B9FFF' }}
+            onClick={() => setMenuOpen(v => !v)}>
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
-      </nav>
 
-      {/* ── 모바일 상단 헤더 (sm 미만) ── */}
-      <div className="sm:hidden flex items-center justify-between px-5 pt-12 pb-4 bg-[#1e1c1b] border-b border-[#d4b483]/10">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center">
-            <ShieldCheck size={15} className="text-white" />
-          </div>
-          <span className="text-sm font-semibold text-[#f0ebe0]">AI 보험 분석</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {authUser ? (
-            <button onClick={handleLogout} className="text-xs text-[#7a7060] cursor-pointer">로그아웃</button>
-          ) : (
-            <Link href="/login" className="text-xs text-[#d4b483]">로그인</Link>
-          )}
-        </div>
-      </div>
-
-      {/* ── 본문 ── */}
-      <div className="max-w-2xl mx-auto px-4 pt-8 pb-32 sm:pb-16">
-
-        {/* [1] 설명 영역 */}
-        <header className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-[#d4b483]/[0.08] border border-[#d4b483]/20 rounded-full px-4 py-1.5 text-xs text-[#d4b483] mb-5">
-            <Bell className="animate-bounce text-red-400 fill-red-400" size={13} />
-            AI 보험 중복 분석 서비스
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#f0ebe0] leading-snug mb-3">
-            보험 <span className="text-[#d4b483]">중복보장</span>을<br />AI로 분석해 드립니다
-          </h1>
-          <p className="text-sm text-[#7a7060] leading-relaxed">
-            보험 문서를 업로드하면 중복 항목을 파악하고<br className="hidden sm:block" />절감 가능 금액과 맞춤 보고서를 생성합니다
-          </p>
-          <div className="flex justify-center gap-2 flex-wrap mt-4">
-            <span className="text-xs px-3 py-1 rounded-full border text-rose-400 border-rose-400/30">📕 PDF</span>
-            <span className="text-xs px-3 py-1 rounded-full border text-amber-400 border-amber-400/30">🖼️ JPG · PNG</span>
-            <span className="text-xs px-3 py-1 rounded-full border text-[#d4b483] border-[#d4b483]/30">📄 TXT · DOCX</span>
-          </div>
-        </header>
-
-        {/* [2] 사용자 정보 카드 */}
-        <section className="bg-[#242220] border border-[#d4b483]/15 rounded-3xl p-5 mb-4">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-1 h-4 bg-[#d4b483] rounded-full" />
-            <p className="text-sm font-semibold text-[#f0ebe0]">기본 정보</p>
-            <p className="text-xs text-[#6a6050] ml-1">입력할수록 정확한 분석이 가능합니다</p>
-          </div>
-
-          {/* 제목 */}
-          <div className="flex flex-col gap-2 mb-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-[#e8c97a]">제목</label>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input type="checkbox" checked={autoTitle}
-                  onChange={e => { setAutoTitle(e.target.checked); setUserInfo(p => ({...p, title: e.target.checked ? '내보험 컨설팅' : ''})) }}
-                  className="w-3 h-3 accent-[#d4b483] cursor-pointer" />
-                <span className="text-xs text-[#d4b483]">자동입력</span>
-              </label>
+        {menuOpen && (
+          <div className="md:hidden border-t px-6 py-5 flex flex-col gap-4"
+            style={{ background: '#0C1525', borderColor: 'rgba(75,127,212,0.1)' }}>
+            <Link href="/" className="text-sm font-semibold" style={{ color: '#6B9FFF' }} onClick={() => setMenuOpen(false)}>홈</Link>
+            <Link href="/dashboard" className="text-sm transition-colors hover:text-[#E2E8F0]" style={{ color: '#4E6888' }} onClick={() => setMenuOpen(false)}>내 분석 내역</Link>
+            <Link href="#" className="text-sm transition-colors hover:text-[#E2E8F0]" style={{ color: '#4E6888' }} onClick={() => setMenuOpen(false)}>프리미엄</Link>
+            <div className="border-t pt-4 flex flex-col gap-3" style={{ borderColor: 'rgba(75,127,212,0.1)' }}>
+              {authUser ? (
+                <button onClick={() => { handleLogout(); setMenuOpen(false) }}
+                  className="text-left text-sm cursor-pointer" style={{ color: '#4E6888' }}>로그아웃</button>
+              ) : (
+                <>
+                  <Link href="/login" className="text-sm" style={{ color: '#4E6888' }} onClick={() => setMenuOpen(false)}>로그인</Link>
+                  <Link href="/register" className="text-sm font-semibold" style={{ color: '#6B9FFF' }} onClick={() => setMenuOpen(false)}>회원가입</Link>
+                </>
+              )}
             </div>
-            <input ref={titleRef} className={inputCls} value={userInfo.title}
-              onChange={e => { setAutoTitle(false); setUserInfo(p => ({...p, title: e.target.value})) }}
-              placeholder="예: 내보험 컨설팅" />
+          </div>
+        )}
+      </header>
+
+      {/* ── 히어로 섹션 ── */}
+      <section className="max-w-[1200px] mx-auto px-6 pt-16 pb-20 md:pt-24 md:pb-28">
+        <div className="flex flex-col md:flex-row items-center gap-12 md:gap-8">
+
+          {/* 좌측: 로고 + 타이틀 */}
+          <div className="flex-[55] flex flex-col items-start">
+
+            {/* AIPD 로고 엠블럼 + 텍스트 */}
+            <div className="flex items-center gap-5 mb-8">
+              <AIPDEmblem size={72} />
+              <div>
+                {/* AIPD 대형 텍스트 */}
+                <div className="text-[52px] md:text-[64px] font-black tracking-[-2px] leading-none select-none"
+                  style={{
+                    background: 'linear-gradient(135deg, #E2E8F0 0%, #A8B8CC 35%, #6B9FFF 70%, #306FFF 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}>
+                  AIPD
+                </div>
+                <p className="text-[9px] tracking-[0.3em] uppercase mt-1 font-medium"
+                  style={{ color: 'rgba(107,159,255,0.55)' }}>
+                  AI Insurance Premier Diagnostics
+                </p>
+              </div>
+            </div>
+
+            {/* 구분선 */}
+            <div className="w-full max-w-md h-px mb-7" style={{
+              background: 'linear-gradient(90deg, rgba(75,127,212,0.5) 0%, rgba(75,127,212,0.1) 60%, transparent 100%)'
+            }} />
+
+            <h1 className="text-3xl md:text-4xl font-bold leading-snug tracking-tight mb-3"
+              style={{ color: '#E2E8F0' }}>
+              AI 보험 중복 분석 서비스
+            </h1>
+            <p className="text-sm leading-relaxed mb-10" style={{ color: '#4E6888' }}>
+              보험 중복보장을 AI로 분석해 드립니다
+            </p>
+
+            {/* CTA 버튼 */}
+            <Link href="/analyze"
+              className="group relative flex items-center gap-2.5 px-8 py-3.5 rounded-full text-sm font-semibold tracking-wide transition-all duration-300 overflow-hidden"
+              style={{ border: '1px solid rgba(75,127,212,0.6)', color: '#6B9FFF' }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLElement
+                el.style.background = 'rgba(48,111,255,0.15)'
+                el.style.borderColor = '#306FFF'
+                el.style.boxShadow = '0 0 32px rgba(48,111,255,0.3), inset 0 0 20px rgba(48,111,255,0.05)'
+                el.style.transform = 'scale(1.02)'
+                el.style.color = '#93B4FF'
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLElement
+                el.style.background = 'transparent'
+                el.style.borderColor = 'rgba(75,127,212,0.6)'
+                el.style.boxShadow = 'none'
+                el.style.transform = 'scale(1)'
+                el.style.color = '#6B9FFF'
+              }}>
+              내 보험 분석하기
+              <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+
+            {/* 배지 */}
+            <div className="flex items-center gap-3 mt-6 flex-wrap">
+              {['🔒 보안 분석', '⚡ 즉시 결과', '📊 맞춤 리포트'].map((t, i) => (
+                <span key={i} className="text-[11px] px-3 py-1 rounded-full border"
+                  style={{ borderColor: 'rgba(75,127,212,0.2)', color: '#4E6888', background: 'rgba(75,127,212,0.04)' }}>
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
 
-          {/* 2열 그리드 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              { label: '성별', ref: genderRef, key: 'gender', placeholder: '예: 남성' },
-              { label: '연령', ref: ageRef, key: 'age', placeholder: '예: 1973년생' },
-              { label: '직업', ref: jobRef, key: 'job', placeholder: '예: 사무직' },
-              { label: '건강', ref: healthRef, key: 'health', placeholder: '예: 고혈압 복용 중' },
-              { label: '예산', ref: budgetRef, key: 'budget', placeholder: '예: 월 15만원' },
-            ].map(f => (
-              <div key={f.key} className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-[#e8c97a]">{f.label}</label>
-                <input ref={f.ref} className={inputCls} value={userInfo[f.key as keyof UserInfo]}
-                  onChange={e => setUserInfo(p => ({...p, [f.key]: e.target.value}))}
-                  placeholder={f.placeholder} />
+          {/* 우측: 피처 카드 */}
+          <div className="flex-[45] w-full flex flex-col gap-3">
+            {FEATURES.map((f, i) => (
+              <div key={i}
+                className="flex items-start gap-4 p-5 rounded-2xl border transition-all duration-300 cursor-default"
+                style={{
+                  borderColor: 'rgba(75,127,212,0.15)',
+                  background: 'rgba(15,24,40,0.6)',
+                  backdropFilter: 'blur(8px)',
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = 'rgba(75,127,212,0.4)'
+                  el.style.background = 'rgba(45,91,227,0.08)'
+                  el.style.transform = 'translateY(-2px)'
+                  el.style.boxShadow = '0 8px 32px rgba(48,111,255,0.1)'
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = 'rgba(75,127,212,0.15)'
+                  el.style.background = 'rgba(15,24,40,0.6)'
+                  el.style.transform = 'translateY(0)'
+                  el.style.boxShadow = 'none'
+                }}>
+                {/* 아이콘 박스 */}
+                <div className="w-14 h-14 rounded-xl border flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(15,24,40,0.8)', borderColor: 'rgba(75,127,212,0.2)' }}>
+                  {f.icon}
+                </div>
+                <div className="pt-1">
+                  <h3 className="text-sm font-semibold mb-1.5 tracking-wide" style={{ color: '#E2E8F0' }}>{f.title}</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: '#2D4060' }}>{f.desc}</p>
+                </div>
               </div>
             ))}
-
-            {/* 목적 */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-[#e8c97a]">목적</label>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                  <input type="checkbox" checked={autoPurpose}
-                    onChange={e => { setAutoPurpose(e.target.checked); setUserInfo(p => ({...p, purpose: e.target.checked ? '중복 보장제거 및 컨설팅' : ''})) }}
-                    className="w-3 h-3 accent-[#d4b483] cursor-pointer" />
-                  <span className="text-xs text-[#d4b483]">자동입력</span>
-                </label>
-              </div>
-              <input ref={purposeRef} className={inputCls} value={userInfo.purpose}
-                onChange={e => { setAutoPurpose(false); setUserInfo(p => ({...p, purpose: e.target.value})) }}
-                placeholder="예: 중복 보장 제거" />
-            </div>
           </div>
-        </section>
-
-        {/* [3] 업로드 카드 */}
-        <section className="bg-[#242220] border border-[#d4b483]/15 rounded-3xl p-5 mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 bg-[#d4b483] rounded-full" />
-            <p className="text-sm font-semibold text-[#f0ebe0]">보험 문서 업로드</p>
-          </div>
-
-          {/* 신뢰 문구 */}
-          <div className="flex items-center justify-center gap-1.5 mb-3 text-xs text-zinc-500">
-            <span>🔒</span>
-            <span>첨부 파일은 AI 분석에만 사용되며 저장되지 않습니다.</span>
-          </div>
-
-          {/* 드롭존 */}
-          <div
-            className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all select-none ${dragging ? 'border-[#d4b483]/60 bg-[#d4b483]/[0.06]' : 'border-[#d4b483]/20 bg-[#d4b483]/[0.02] hover:border-[#d4b483]/40 hover:bg-[#d4b483]/[0.04]'}`}
-            onDragOver={e=>{e.preventDefault();setDragging(true)}}
-            onDragLeave={()=>setDragging(false)}
-            onDrop={e=>{e.preventDefault();setDragging(false);addFiles(e.dataTransfer.files)}}
-            onClick={()=>fileInputRef.current?.click()}
-          >
-            <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
-              className="hidden" onChange={e=>e.target.files&&addFiles(e.target.files)} />
-            <div className="w-12 h-12 rounded-2xl bg-[#d4b483]/[0.08] border border-[#d4b483]/20 flex items-center justify-center text-2xl mx-auto mb-3">📋</div>
-            <p className="text-sm font-medium text-[#d9cfc0] mb-1">드래그하거나 클릭하여 업로드</p>
-            <p className="text-xs text-[#5a5040]">PDF · JPG · PNG · TXT · DOCX · 최대 5개</p>
-          </div>
-
-          {/* 파일 목록 */}
-          {files.length > 0 && (
-            <div className="flex flex-col gap-2 mt-3">
-              {files.map((f,i) => (
-                <div key={f.name} className="flex items-center gap-2.5 px-3 py-2.5 bg-[#1a1816] border border-[#d4b483]/10 rounded-xl">
-                  <span className="text-base">{fileIcon(f.name)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-[#d9cfc0] truncate">{f.name}</div>
-                    <div className="text-xs text-[#5a5040]">{fmtSize(f.size)}</div>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-lg border shrink-0 font-medium ${isPDF(f.name) ? 'text-rose-400 border-rose-400/30' : isImage(f.name) ? 'text-amber-400 border-amber-400/30' : 'text-[#d4b483] border-[#d4b483]/30'}`}>
-                    {isPDF(f.name)?'PDF':isImage(f.name)?'IMG':'TXT'}
-                  </span>
-                  <button className="text-[#5a5040] hover:text-rose-400 transition-colors text-sm cursor-pointer"
-                    onClick={()=>setFiles(p=>p.filter((_,j)=>j!==i))}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* 복원 알림 */}
-        {restoredInfo && (
-          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl px-4 py-3 text-emerald-400 text-xs mb-4">
-            <span>✅</span>
-            <span>이전 입력 정보를 복원했습니다. 파일을 다시 업로드해 주세요.</span>
-            <button className="ml-auto text-emerald-600 hover:text-emerald-400 cursor-pointer" onClick={() => setRestoredInfo(false)}>✕</button>
-          </div>
-        )}
-
-        {/* 에러 */}
-        {error && (
-          <div className="bg-rose-500/[0.05] border border-rose-500/30 rounded-2xl px-4 py-3 text-rose-400 text-sm mb-4">{error}</div>
-        )}
-
-        {/* 분석 버튼 (데스크탑) */}
-        <div className="hidden sm:block no-print mb-6">
-          <div className={`${(files.length===0||loading) ? 'opacity-40 pointer-events-none' : ''}`}>
-            <button
-              className="gold-glow-btn w-full py-4 bg-gradient-to-b from-[#f5d060] via-[#e8b840] to-[#c4892a] hover:from-[#fde878] hover:via-[#f0c840] hover:to-[#d49a30] rounded-2xl border-2 border-[#f5d060] text-[#1e1408] font-extrabold text-base tracking-wide flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.01]"
-              disabled={files.length===0||loading}
-              onClick={handleAnalyzeClick}
-            >
-              <span className={`text-lg ${!loading ? 'animate-bounce' : ''}`}>{loading ? '⏳' : '🔍'}</span>
-              {loading ? '분석 중...' : 'AI 중복 분석 시작'}
-            </button>
-          </div>
-          {!authUser && files.length > 0 && (
-            <p className="text-center text-xs text-[#5a5040] mt-2">
-              🔐 로그인 후 분석 결과를 저장하고 언제든 다시 확인할 수 있습니다
-            </p>
-          )}
         </div>
 
-        {/* 로딩 */}
-        {loading && (
-          <div className="text-center p-10 bg-[#242220] border border-[#d4b483]/15 rounded-3xl mt-4">
-            <div className="w-10 h-10 border-2 border-[#d4b483]/20 border-t-[#d4b483] rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-[#d4b483] text-sm font-medium">AI가 보험 문서를 분석하고 있습니다</p>
-            <p className="text-xs text-[#5a5040] mt-1">{stepMsg}</p>
-            <div className="flex justify-center gap-1.5 mt-4">
-              {STEPS.map((_,i) => (
-                <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i===stepIdx ? 'bg-[#d4b483]' : 'bg-[#d4b483]/20'}`} />
-              ))}
+        {/* ── 하단 스탯 바 ── */}
+        <div className="mt-14 rounded-2xl border px-8 py-5 flex flex-col sm:flex-row gap-6 sm:gap-0"
+          style={{ background: 'rgba(15,24,40,0.7)', borderColor: 'rgba(75,127,212,0.1)', backdropFilter: 'blur(8px)' }}>
+          {[
+            { value: 'PDF · JPG · PNG', label: '지원 파일 형식', color: '#6B9FFF' },
+            { value: '99.2%', label: 'AI 분석 정확도', color: '#22C55E' },
+            { value: '즉시', label: '결과 확인', color: '#D4AF37' },
+          ].map((s, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center text-center sm:border-r last:border-r-0"
+              style={{ borderColor: 'rgba(75,127,212,0.08)' }}>
+              <span className="text-base font-bold mb-1" style={{ color: s.color }}>{s.value}</span>
+              <span className="text-xs" style={{ color: '#2D4060' }}>{s.label}</span>
             </div>
-          </div>
-        )}
-
-        {/* 결과 */}
-        {result && (
-          <div id="result-section" className="mt-6">
-            <div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
-              <div>
-                <div className="text-base font-bold text-[#f0ebe0]">분석 완료 보고서</div>
-                <div className="text-xs text-[#5a5040] mt-0.5">
-                  {new Date().toLocaleString('ko-KR',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})} · 파일 {files.length}개
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap no-print">
-                <button className="px-3 py-1.5 bg-transparent border border-[#d4b483]/25 rounded-xl text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer" onClick={exportTxt}>📄 TXT</button>
-                <button className="px-3 py-1.5 bg-transparent border border-[#d4b483]/25 rounded-xl text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer" onClick={exportPdf}>📑 PDF</button>
-                <button className="px-3 py-1.5 bg-transparent border border-[#d4b483]/25 rounded-xl text-[#d4b483] text-xs hover:bg-[#d4b483]/10 transition-colors cursor-pointer" onClick={()=>window.print()}>🖨️ 인쇄</button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
-              <div className="bg-rose-500/5 border border-rose-500/25 rounded-2xl p-4 text-center">
-                <div className="text-3xl font-bold text-rose-400 mb-1">{result.summary.duplicateCount}</div>
-                <div className="text-xs text-[#5a5040]">중복 항목</div>
-              </div>
-              <div className="bg-[#242220] border border-[#d4b483]/15 rounded-2xl p-4 text-center">
-                <div className="text-2xl font-bold text-[#d9cfc0] mb-1">{result.summary.totalPolicies}</div>
-                <div className="text-xs text-[#5a5040]">분석 보험</div>
-              </div>
-              <div className="bg-amber-500/5 border border-amber-500/25 rounded-2xl p-4 text-center">
-                <div className="text-xl font-bold text-amber-400 mb-1">{result.summary.estimatedMonthlySavings}</div>
-                <div className="text-xs text-[#5a5040]">절감 예상</div>
-              </div>
-              <div className={`rounded-2xl p-4 text-center border ${riskCard(result.summary.riskLevel)}`}>
-                <div className={`text-xl font-bold mb-1 ${riskVal(result.summary.riskLevel)}`}>{result.summary.riskLevel}</div>
-                <div className="text-xs text-[#5a5040]">위험도</div>
-              </div>
-            </div>
-
-            <div className="bg-[#242220] border border-[#d4b483]/15 rounded-2xl p-5 mb-5">
-              <div className="text-xs font-semibold text-[#d4b483] mb-3">⬡ AI 분석 요약</div>
-              <p className="text-sm text-[#a09080] leading-7">{result.aiSummary}</p>
-            </div>
-
-            <div className="text-xs font-semibold text-[#5a5040] mb-3">중복 보장 상세 목록</div>
-            <div className="overflow-x-auto mb-5">
-              <table className="w-full border-collapse text-sm min-w-[600px]">
-                <thead>
-                  <tr>
-                    {['중복 항목','해당 보험','보장 내용 비교','중복 유형','절감 예상','심각도'].map(h => (
-                      <th key={h} className="text-left px-3 py-2.5 text-xs text-[#5a5040] font-normal border-b border-[#d4b483]/10 whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.duplicates.length === 0
-                    ? <tr><td colSpan={6} className="text-center text-[#5a5040] py-6">중복 보장 항목이 발견되지 않았습니다</td></tr>
-                    : result.duplicates.map((d,i) => (
-                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] align-top">
-                          <strong className="block text-[#f0ebe0] font-medium text-sm mb-0.5">{d.item}</strong>
-                          <span className="text-xs text-[#5a5040]">{d.action}</span>
-                        </td>
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] text-xs text-[#7a7060] align-top">{d.policies}</td>
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] text-xs align-top">
-                          <div className="text-[#d4b483] mb-0.5">A: {d.coverageA}</div>
-                          <div className="text-[#a09080]">B: {d.coverageB}</div>
-                        </td>
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] text-xs text-[#a09080] align-top">{d.type}</td>
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] text-xs text-amber-400 align-top">{d.monthlySavings}</td>
-                        <td className="px-3 py-2.5 border-b border-[#d4b483]/[0.06] align-top">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${sevBadge(d.severity)}`}>{d.severity}</span>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <div className="text-xs font-semibold text-[#5a5040] mb-3">AI 권고사항</div>
-            <div className="bg-[#d4b483]/[0.04] border border-[#d4b483]/20 border-l-[3px] border-l-[#d4b483] rounded-xl px-5 py-4 text-sm text-[#a09080] leading-7 mb-3">
-              {result.recommendation}
-            </div>
-            <div className="text-xs text-[#4a4035] bg-white/[0.02] border border-white/[0.04] rounded-xl px-4 py-3 mb-6">
-              {result.disclaimer}
-            </div>
-          </div>
-        )}
-
-        <footer className="text-center mt-12 text-xs text-[#3a3530] leading-7">
-          <p>insure.dbzone.kr · AI 기반 보험 중복 분석 서비스</p>
-          <p>본 서비스는 참고용이며, 실제 보험 변경 전 전문가 상담을 권장합니다.</p>
-        </footer>
-      </div>
-
-      {/* ── 모바일 하단 탭바 ── */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1e1c1b]/95 backdrop-blur-md border-t border-[#d4b483]/10">
-        <div className="flex items-center">
-          {NAV_ITEMS.map(item => (
-            <Link key={item.href} href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 transition-colors
-                ${pathname === item.href ? 'text-[#f5d28a]' : 'text-[#5a5040]'}`}>
-              {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
           ))}
-          {authUser ? (
-            <button onClick={handleLogout}
-              className="flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[#5a5040] cursor-pointer">
-              <LogOut size={18} />
-              <span className="text-[10px] font-medium">로그아웃</span>
-            </button>
-          ) : (
-            <Link href="/login"
-              className="flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[#5a5040]">
-              <LogIn size={18} />
-              <span className="text-[10px] font-medium">로그인</span>
-            </Link>
-          )}
         </div>
+      </section>
 
-        {/* 모바일 분석 버튼 (sticky) */}
-        <div className="px-4 pb-4 no-print">
-          {!authUser && files.length > 0 && (
-            <p className="text-center text-[10px] text-[#5a5040] mb-1.5">
-              🔐 로그인 후 결과를 저장하고 다시 볼 수 있습니다
-            </p>
-          )}
-          <div className={`${(files.length===0||loading) ? 'opacity-40 pointer-events-none' : ''}`}>
-            <button
-              className="gold-glow-btn w-full py-4 bg-gradient-to-b from-[#f5d060] via-[#e8b840] to-[#c4892a] rounded-2xl border-2 border-[#f5d060] text-[#1e1408] font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer"
-              disabled={files.length===0||loading}
-              onClick={handleAnalyzeClick}
-            >
-              <span className={`${!loading ? 'animate-bounce' : ''}`}>{loading ? '⏳' : '🔍'}</span>
-              {loading ? '분석 중...' : 'AI 중복 분석 시작'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 로그인 유도 모달 */}
-      {showLoginModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 px-4"
-          onClick={() => setShowLoginModal(false)}>
-          <div className="bg-[#242220] border border-[#d4b483]/25 rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-sm shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="text-center mb-1">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#c4974a] to-[#7a5c2e] flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">🔐</span>
-              </div>
-              <div className="text-base font-bold text-[#f0ebe0] mb-2">로그인이 필요한 서비스입니다</div>
-              <p className="text-sm text-[#7a7060] leading-relaxed mb-5">
-                분석 결과를 저장하고<br />언제든 다시 확인할 수 있습니다.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                className="w-full py-3 bg-gradient-to-b from-[#f5d060] via-[#e8b840] to-[#c4892a] rounded-2xl text-[#1e1408] font-extrabold text-sm cursor-pointer hover:brightness-110 transition-all"
-                onClick={() => handleLoginModalGo('/login')}>
-                로그인하기
-              </button>
-              <button
-                className="w-full py-3 bg-[#d4b483]/10 border border-[#d4b483]/30 rounded-2xl text-[#d4b483] font-bold text-sm cursor-pointer hover:bg-[#d4b483]/20 transition-all"
-                onClick={() => handleLoginModalGo('/register')}>
-                회원가입하기
-              </button>
-              <button
-                className="w-full py-2.5 text-[#5a5040] text-sm cursor-pointer hover:text-[#a09080] transition-colors mt-1"
-                onClick={() => setShowLoginModal(false)}>
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 경고 모달 */}
-      {showEmptyWarning && (
-        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 px-4">
-          <div className="bg-[#242220] border border-[#d4b483]/25 rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-sm shadow-2xl">
-            <div className="text-base font-bold text-[#f0ebe0] mb-3">⚠️ 입력되지 않은 항목</div>
-            <div className="text-sm text-[#a09080] leading-7 mb-5">
-              <ul className="mb-3 space-y-1">
-                {emptyFields.map(f => <li key={f} className="text-amber-400">· {FIELD_LABELS[f as keyof UserInfo]}</li>)}
-              </ul>
-              <p>기본 정보 없이 계속 진행하시겠습니까?</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                className="py-3 bg-transparent border border-[#d4b483]/20 rounded-2xl text-[#a09080] text-sm hover:border-[#d4b483]/40 transition-colors cursor-pointer"
-                onClick={handleWarningCancel}>입력하러 가기</button>
-              <button
-                className="py-3 bg-gradient-to-r from-[#7a5c2e] to-[#c4974a] rounded-2xl text-[#f0ebe0] text-sm font-bold hover:brightness-110 transition-all cursor-pointer"
-                onClick={handleWarningProceed}>계속 진행</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── 푸터 ── */}
+      <footer className="border-t py-8 text-center relative z-10"
+        style={{ borderColor: 'rgba(75,127,212,0.08)' }}>
+        <p className="text-xs" style={{ color: '#1A2A40' }}>insure.dbzone.kr · AI 기반 보험 중복 분석 서비스</p>
+        <p className="text-xs mt-1" style={{ color: '#1A2A40' }}>본 서비스는 참고용이며, 실제 보험 변경 전 전문가 상담을 권장합니다.</p>
+      </footer>
     </main>
   )
 }
