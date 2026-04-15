@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                Int        @id @default(autoincrement())
+  email             String     @unique
+  password          String
+  username          String?
+  role              String     @default("USER")
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime   @default(now())
+  analyses          Analysis[]
+}
+
+model Analysis {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String?
+  gender     String?
+  age        String?
+  job        String?
+  health     String?
+  purpose    String?
+  budget     String?
+  fileNames  String?
+  result     Json?
+  createdAt  DateTime @default(now())
+}

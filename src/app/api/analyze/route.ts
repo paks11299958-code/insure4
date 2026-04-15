@@ -125,12 +125,14 @@ async function callClaude(messages: any[], system: string, maxTokens = 4096) {
   })
 }
 
-interface UserInfo { gender?: string; job?: string; health?: string; purpose?: string; budget?: string }
+interface UserInfo { title?: string; gender?: string; age?: string; job?: string; health?: string; purpose?: string; budget?: string }
 
 function formatUserInfo(u?: UserInfo): string {
   if (!u) return ''
   const parts: string[] = []
-  if (u.gender) parts.push(`성별/연령: ${u.gender}`)
+  if (u.title) parts.push(`분석제목: ${u.title}`)
+  const genderAge = [u.gender, u.age].filter(Boolean).join(', ')
+  if (genderAge) parts.push(`성별/연령: ${genderAge}`)
   if (u.job) parts.push(`직업: ${u.job}`)
   if (u.health) parts.push(`건강상태: ${u.health}`)
   if (u.purpose) parts.push(`분석목적: ${u.purpose}`)
@@ -188,7 +190,7 @@ async function analyzeWithImages(
 
   // 1단계: 이미지에서 항목 추출
   const extractContent = [
-    ...images.slice(0, 10).map(img => ({
+    ...images.slice(0, 5).map(img => ({
       type: 'image' as const,
       source: { type: 'base64' as const, media_type: img.mediaType as ImgMediaType, data: img.data },
     })),
