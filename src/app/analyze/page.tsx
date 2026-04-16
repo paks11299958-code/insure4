@@ -423,7 +423,7 @@ export default function AnalyzePage() {
                     <div className="flex items-center gap-2 mb-5">
                       <span className="w-1 h-4 rounded-full" style={{background:'linear-gradient(180deg,#4B7FD4,#2D5BE3)'}}/>
                       <span className="text-sm font-semibold" style={{color:'#E2E8F0'}}>기본</span>
-                      <span className="text-xs ml-1" style={{color:'#3A424E'}}>추가 정보를 입력할수록 정확한 AI 분석이 가능합니다</span>
+                      <span className="text-xs ml-1" style={{color:'#3A424E'}}>정보 제공시 AI분석이 더 정확합니다</span>
                     </div>
 
                     {/* 성별 + 생년월일 */}
@@ -606,7 +606,7 @@ export default function AnalyzePage() {
           )}
 
           {/* ── 분석 버튼 ── */}
-          <div className="hidden sm:block no-print mb-6">
+          <div className="no-print mb-6">
             <button
               disabled={files.length===0||loading}
               onClick={handleAnalyzeClick}

@@ -10,4 +10,5 @@
  */
 export type * from './models/User'
 export type * from './models/Analysis'
+export type * from './models/UserCodefInfo'
 export type * from './commonInputTypes'

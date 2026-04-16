@@ -1,88 +1,102 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
+import { prisma } from '@/lib/prisma'
+import {
+  getCodefToken,
+  rsaEncrypt,
+  fetchInsuranceList,
+  formatInsuranceData,
+  REAUTH_CODES,
+} from '@/lib/codef'
 
-/**
- * POST /api/codef/import
- *
- * 코드에프 API를 통해 내보험 조회 후 PDF로 반환
- *
- * [연동 준비 사항]
- * 1. 코드에프 가입 후 CLIENT_ID, CLIENT_SECRET 발급
- * 2. .env.local에 추가:
- *    CODEF_CLIENT_ID=your_client_id
- *    CODEF_CLIENT_SECRET=your_client_secret
- *    CODEF_PUBLIC_KEY=your_rsa_public_key
- * 3. npm install codef-api-v2 (또는 직접 HTTP 호출)
- * 4. 아래 TODO 주석 구간을 실제 코드에프 API 호출로 교체
- */
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? 'secret')
+
 export async function POST(req: NextRequest) {
   try {
-    const { ssnFront, ssnBack } = await req.json()
-
-    if (!ssnFront || !ssnBack) {
-      return NextResponse.json({ error: '주민등록번호를 입력해 주세요.' }, { status: 400 })
+    // ── 1. 로그인 사용자 확인 (optional — 비로그인도 조회 가능, 단 connected_id 저장 안 됨) ──
+    let userId: number | null = null
+    const cookie = req.cookies.get('token')?.value
+    if (cookie) {
+      try {
+        const { payload } = await jwtVerify(cookie, JWT_SECRET)
+        userId = payload.id as number
+      } catch { /* 비로그인 허용 */ }
     }
-    if (ssnFront.length !== 6 || ssnBack.length !== 7) {
-      return NextResponse.json({ error: '주민등록번호 형식이 올바르지 않습니다.' }, { status: 400 })
+
+    // ── 2. 요청 파라미터 파싱 ──
+    const { userName, ssnFront, ssnBack } = await req.json() as {
+      userName:  string
+      ssnFront:  string
+      ssnBack:   string
     }
 
-    // ── TODO: 코드에프 API 연동 시작 ──────────────────────────────
-    //
-    // [Step 1] 코드에프 액세스 토큰 발급
-    // const tokenRes = await fetch('https://oauth.codef.io/oauth/token', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    //   body: new URLSearchParams({
-    //     grant_type: 'client_credentials',
-    //     client_id: process.env.CODEF_CLIENT_ID!,
-    //     client_secret: process.env.CODEF_CLIENT_SECRET!,
-    //   }),
-    // })
-    // const { access_token } = await tokenRes.json()
-    //
-    // [Step 2] 주민번호 RSA 암호화 (코드에프 공개키 사용)
-    // const crypto = require('crypto')
-    // const publicKey = Buffer.from(process.env.CODEF_PUBLIC_KEY!, 'base64').toString()
-    // const encryptedSsn = crypto.publicEncrypt(
-    //   { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
-    //   Buffer.from(`${ssnFront}${ssnBack}`)
-    // ).toString('base64')
-    //
-    // [Step 3] 내보험 조회 API 호출 (금융결제원 - 내보험다보여)
-    // const apiRes = await fetch('https://api.codef.io/v1/kr/insurance/public/p/myins/list', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     Authorization: `Bearer ${access_token}`,
-    //   },
-    //   body: JSON.stringify({
-    //     organization: '0000',   // 전체 보험사
-    //     loginType: '0',         // 인증서 로그인
-    //     id: encryptedSsn,
-    //   }),
-    // })
-    // const insuranceData = await apiRes.json()
-    //
-    // [Step 4] 조회 결과를 PDF로 변환
-    // (예: puppeteer, jsPDF, pdfkit 등 사용)
-    // const pdfBuffer = await generatePdf(insuranceData)
-    //
-    // return new NextResponse(pdfBuffer, {
-    //   headers: {
-    //     'Content-Type': 'application/pdf',
-    //     'Content-Disposition': 'attachment; filename="my-insurance.pdf"',
-    //   },
-    // })
-    //
-    // ── TODO 끝 ───────────────────────────────────────────────────
+    if (!userName?.trim()) {
+      return NextResponse.json({ error: '이름을 입력해 주세요.' }, { status: 400 })
+    }
+    if (!ssnFront || ssnFront.length !== 6) {
+      return NextResponse.json({ error: '주민등록번호 앞 6자리를 확인해 주세요.' }, { status: 400 })
+    }
+    if (!ssnBack || ssnBack.length !== 7) {
+      return NextResponse.json({ error: '주민등록번호 뒤 7자리를 확인해 주세요.' }, { status: 400 })
+    }
 
-    // 연동 전 임시 응답 (개발/테스트용)
-    return NextResponse.json(
-      { error: '코드에프 API 연동이 아직 설정되지 않았습니다. .env.local에 CODEF_CLIENT_ID, CODEF_CLIENT_SECRET, CODEF_PUBLIC_KEY를 설정해 주세요.' },
-      { status: 501 }
-    )
+    // ── 3. Codef OAuth 토큰 발급 ──
+    const codefToken = await getCodefToken()
+
+    // ── 4. DB에서 connected_id 조회 (재방문 사용자) ──
+    let connectedId: string | undefined
+    if (userId) {
+      const info = await prisma.userCodefInfo.findUnique({ where: { userId } })
+      connectedId = info?.connectedId ?? undefined
+    }
+
+    // ── 5. RSA 암호화 (주민등록번호는 암호화 후 즉시 폐기) ──
+    const identity = rsaEncrypt(`${ssnFront}${ssnBack}`)
+
+    // ── 6. 보험 조회 API 호출 ──
+    const result = await fetchInsuranceList(codefToken, {
+      userName: userName.trim(),
+      identity,
+      connectedId,
+    })
+
+    // ── 7. 에러 분기 ──
+    if (result.result.code !== '0000') {
+      // connected_id 만료 → DB에서 삭제 후 재인증 요청
+      if (REAUTH_CODES.has(result.result.code)) {
+        if (userId) {
+          await prisma.userCodefInfo.deleteMany({ where: { userId } })
+        }
+        return NextResponse.json(
+          { error: 'REAUTH_REQUIRED', message: '인증이 만료되었습니다. 정보를 다시 입력해 주세요.' },
+          { status: 401 },
+        )
+      }
+      return NextResponse.json(
+        { error: result.result.message || '보험 조회에 실패했습니다.', code: result.result.code },
+        { status: 502 },
+      )
+    }
+
+    // ── 8. connected_id 저장 (최초 조회 시 응답에 포함됨) ──
+    const returnedConnectedId = result.data?.connectedId as string | undefined
+    if (returnedConnectedId && userId) {
+      await prisma.userCodefInfo.upsert({
+        where:  { userId },
+        create: { userId, connectedId: returnedConnectedId },
+        update: { connectedId: returnedConnectedId, lastSyncAt: new Date() },
+      })
+    }
+
+    // ── 9. 보험 데이터를 텍스트로 포맷해 반환 ──
+    const text     = formatInsuranceData(result.data, userName.trim())
+    const fileName = `내보험_${userName.trim()}_${new Date().toISOString().slice(0, 10)}.txt`
+
+    return NextResponse.json({ text, fileName })
 
   } catch (e) {
     console.error('[codef/import]', e)
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+    const msg = e instanceof Error ? e.message : '서버 오류가 발생했습니다.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

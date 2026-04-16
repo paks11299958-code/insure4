@@ -385,7 +385,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
-  Analysis: 'Analysis'
+  Analysis: 'Analysis',
+  UserCodefInfo: 'UserCodefInfo'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -401,7 +402,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "analysis"
+    modelProps: "user" | "analysis" | "userCodefInfo"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -553,6 +554,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    UserCodefInfo: {
+      payload: Prisma.$UserCodefInfoPayload<ExtArgs>
+      fields: Prisma.UserCodefInfoFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserCodefInfoFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserCodefInfoFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        findFirst: {
+          args: Prisma.UserCodefInfoFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserCodefInfoFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        findMany: {
+          args: Prisma.UserCodefInfoFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>[]
+        }
+        create: {
+          args: Prisma.UserCodefInfoCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        createMany: {
+          args: Prisma.UserCodefInfoCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserCodefInfoCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>[]
+        }
+        delete: {
+          args: Prisma.UserCodefInfoDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        update: {
+          args: Prisma.UserCodefInfoUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserCodefInfoDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserCodefInfoUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserCodefInfoUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserCodefInfoUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCodefInfoPayload>
+        }
+        aggregate: {
+          args: Prisma.UserCodefInfoAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserCodefInfo>
+        }
+        groupBy: {
+          args: Prisma.UserCodefInfoGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserCodefInfoGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserCodefInfoCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserCodefInfoCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -622,6 +697,17 @@ export const AnalysisScalarFieldEnum = {
 } as const
 
 export type AnalysisScalarFieldEnum = (typeof AnalysisScalarFieldEnum)[keyof typeof AnalysisScalarFieldEnum]
+
+
+export const UserCodefInfoScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  connectedId: 'connectedId',
+  lastSyncAt: 'lastSyncAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserCodefInfoScalarFieldEnum = (typeof UserCodefInfoScalarFieldEnum)[keyof typeof UserCodefInfoScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -837,6 +923,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   analysis?: Prisma.AnalysisOmit
+  userCodefInfo?: Prisma.UserCodefInfoOmit
 }
 
 /* Types for Logging */

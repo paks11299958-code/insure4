@@ -51,3 +51,8 @@ export type User = Prisma.UserModel
  * 
  */
 export type Analysis = Prisma.AnalysisModel
+/**
+ * Model UserCodefInfo
+ * 
+ */
+export type UserCodefInfo = Prisma.UserCodefInfoModel

@@ -52,7 +52,8 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
-  Analysis: 'Analysis'
+  Analysis: 'Analysis',
+  UserCodefInfo: 'UserCodefInfo'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -101,6 +102,17 @@ export const AnalysisScalarFieldEnum = {
 } as const
 
 export type AnalysisScalarFieldEnum = (typeof AnalysisScalarFieldEnum)[keyof typeof AnalysisScalarFieldEnum]
+
+
+export const UserCodefInfoScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  connectedId: 'connectedId',
+  lastSyncAt: 'lastSyncAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserCodefInfoScalarFieldEnum = (typeof UserCodefInfoScalarFieldEnum)[keyof typeof UserCodefInfoScalarFieldEnum]
 
 
 export const SortOrder = {
