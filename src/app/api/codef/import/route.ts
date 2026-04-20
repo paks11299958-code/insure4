@@ -167,12 +167,6 @@ export async function POST(req: NextRequest) {
       // 회원가입 중 SMS 추가인증 필요
       const regContinue = regResult.data?.continue2Way as boolean | undefined
       if (regResult.result.code === TWO_WAY_CODE && regContinue) {
-        // SMS 발송 직후 DB에 미리 저장 — 재시도 시 동일 계정 재사용
-        await prisma.credit4uAccount.upsert({
-          where:  { ssnHash },
-          create: { ssnHash, credit4uId: newId, credit4uPw: newPw },
-          update: { credit4uId: newId, credit4uPw: newPw },
-        })
         return NextResponse.json({
           requiresTwoWay: true,
           isRegister: true,
@@ -234,8 +228,17 @@ export async function POST(req: NextRequest) {
 
     // ── 8. 에러 분기 ──
     if (result.result.code !== '0000') {
+      const msg = decodeURIComponent(result.result.message ?? '보험 조회에 실패했습니다.')
+      // credit4u 계정이 실제로 존재하지 않는 경우 → DB 캐시 삭제 후 다음 시도 시 재가입
+      if (msg.includes('회원가입')) {
+        await prisma.credit4uAccount.delete({ where: { ssnHash } })
+        return NextResponse.json(
+          { error: '보험 조회 계정이 만료되었습니다. 다시 한 번 시도해 주세요.', code: result.result.code },
+          { status: 502 },
+        )
+      }
       return NextResponse.json(
-        { error: decodeURIComponent(result.result.message ?? '보험 조회에 실패했습니다.'), code: result.result.code },
+        { error: msg, code: result.result.code },
         { status: 502 },
       )
     }
