@@ -386,7 +386,9 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   Analysis: 'Analysis',
-  UserCodefInfo: 'UserCodefInfo'
+  UserCodefInfo: 'UserCodefInfo',
+  Credit4uAccount: 'Credit4uAccount',
+  CodefToken: 'CodefToken'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -402,7 +404,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "analysis" | "userCodefInfo"
+    modelProps: "user" | "analysis" | "userCodefInfo" | "credit4uAccount" | "codefToken"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -628,6 +630,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Credit4uAccount: {
+      payload: Prisma.$Credit4uAccountPayload<ExtArgs>
+      fields: Prisma.Credit4uAccountFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.Credit4uAccountFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.Credit4uAccountFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        findFirst: {
+          args: Prisma.Credit4uAccountFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.Credit4uAccountFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        findMany: {
+          args: Prisma.Credit4uAccountFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>[]
+        }
+        create: {
+          args: Prisma.Credit4uAccountCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        createMany: {
+          args: Prisma.Credit4uAccountCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.Credit4uAccountCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>[]
+        }
+        delete: {
+          args: Prisma.Credit4uAccountDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        update: {
+          args: Prisma.Credit4uAccountUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        deleteMany: {
+          args: Prisma.Credit4uAccountDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.Credit4uAccountUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.Credit4uAccountUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>[]
+        }
+        upsert: {
+          args: Prisma.Credit4uAccountUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$Credit4uAccountPayload>
+        }
+        aggregate: {
+          args: Prisma.Credit4uAccountAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCredit4uAccount>
+        }
+        groupBy: {
+          args: Prisma.Credit4uAccountGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.Credit4uAccountGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.Credit4uAccountCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.Credit4uAccountCountAggregateOutputType> | number
+        }
+      }
+    }
+    CodefToken: {
+      payload: Prisma.$CodefTokenPayload<ExtArgs>
+      fields: Prisma.CodefTokenFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CodefTokenFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CodefTokenFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        findFirst: {
+          args: Prisma.CodefTokenFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CodefTokenFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        findMany: {
+          args: Prisma.CodefTokenFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>[]
+        }
+        create: {
+          args: Prisma.CodefTokenCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        createMany: {
+          args: Prisma.CodefTokenCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CodefTokenCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>[]
+        }
+        delete: {
+          args: Prisma.CodefTokenDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        update: {
+          args: Prisma.CodefTokenUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        deleteMany: {
+          args: Prisma.CodefTokenDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CodefTokenUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CodefTokenUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>[]
+        }
+        upsert: {
+          args: Prisma.CodefTokenUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CodefTokenPayload>
+        }
+        aggregate: {
+          args: Prisma.CodefTokenAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCodefToken>
+        }
+        groupBy: {
+          args: Prisma.CodefTokenGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CodefTokenGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CodefTokenCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CodefTokenCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -708,6 +858,33 @@ export const UserCodefInfoScalarFieldEnum = {
 } as const
 
 export type UserCodefInfoScalarFieldEnum = (typeof UserCodefInfoScalarFieldEnum)[keyof typeof UserCodefInfoScalarFieldEnum]
+
+
+export const Credit4uAccountScalarFieldEnum = {
+  id: 'id',
+  ssnHash: 'ssnHash',
+  credit4uId: 'credit4uId',
+  credit4uPw: 'credit4uPw',
+  registeredAt: 'registeredAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type Credit4uAccountScalarFieldEnum = (typeof Credit4uAccountScalarFieldEnum)[keyof typeof Credit4uAccountScalarFieldEnum]
+
+
+export const CodefTokenScalarFieldEnum = {
+  id: 'id',
+  clientId: 'clientId',
+  accessToken: 'accessToken',
+  tokenType: 'tokenType',
+  expiresIn: 'expiresIn',
+  issuedAt: 'issuedAt',
+  expiresAt: 'expiresAt',
+  refreshToken: 'refreshToken',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CodefTokenScalarFieldEnum = (typeof CodefTokenScalarFieldEnum)[keyof typeof CodefTokenScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -924,6 +1101,8 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   analysis?: Prisma.AnalysisOmit
   userCodefInfo?: Prisma.UserCodefInfoOmit
+  credit4uAccount?: Prisma.Credit4uAccountOmit
+  codefToken?: Prisma.CodefTokenOmit
 }
 
 /* Types for Logging */

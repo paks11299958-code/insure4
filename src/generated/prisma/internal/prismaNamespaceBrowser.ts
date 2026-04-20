@@ -53,7 +53,9 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   Analysis: 'Analysis',
-  UserCodefInfo: 'UserCodefInfo'
+  UserCodefInfo: 'UserCodefInfo',
+  Credit4uAccount: 'Credit4uAccount',
+  CodefToken: 'CodefToken'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -113,6 +115,33 @@ export const UserCodefInfoScalarFieldEnum = {
 } as const
 
 export type UserCodefInfoScalarFieldEnum = (typeof UserCodefInfoScalarFieldEnum)[keyof typeof UserCodefInfoScalarFieldEnum]
+
+
+export const Credit4uAccountScalarFieldEnum = {
+  id: 'id',
+  ssnHash: 'ssnHash',
+  credit4uId: 'credit4uId',
+  credit4uPw: 'credit4uPw',
+  registeredAt: 'registeredAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type Credit4uAccountScalarFieldEnum = (typeof Credit4uAccountScalarFieldEnum)[keyof typeof Credit4uAccountScalarFieldEnum]
+
+
+export const CodefTokenScalarFieldEnum = {
+  id: 'id',
+  clientId: 'clientId',
+  accessToken: 'accessToken',
+  tokenType: 'tokenType',
+  expiresIn: 'expiresIn',
+  issuedAt: 'issuedAt',
+  expiresAt: 'expiresAt',
+  refreshToken: 'refreshToken',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CodefTokenScalarFieldEnum = (typeof CodefTokenScalarFieldEnum)[keyof typeof CodefTokenScalarFieldEnum]
 
 
 export const SortOrder = {

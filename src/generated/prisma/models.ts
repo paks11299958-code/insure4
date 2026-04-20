@@ -11,4 +11,6 @@
 export type * from './models/User'
 export type * from './models/Analysis'
 export type * from './models/UserCodefInfo'
+export type * from './models/Credit4uAccount'
+export type * from './models/CodefToken'
 export type * from './commonInputTypes'

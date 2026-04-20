@@ -56,3 +56,13 @@ export type Analysis = Prisma.AnalysisModel
  * 
  */
 export type UserCodefInfo = Prisma.UserCodefInfoModel
+/**
+ * Model Credit4uAccount
+ * 
+ */
+export type Credit4uAccount = Prisma.Credit4uAccountModel
+/**
+ * Model CodefToken
+ * 
+ */
+export type CodefToken = Prisma.CodefTokenModel

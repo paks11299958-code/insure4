@@ -426,16 +426,18 @@ export default function AnalyzePage() {
           </div>
         </div>
 
-        {/* [2.5] 내보험 가져오기 */}
-        <div className="mb-4">
-          <CodefImportButton onImported={(file) => {
-            setFiles(prev => {
-              const exists = prev.some(f=>f.name===file.name)
-              if (exists) return prev
-              return [...prev,{file,name:file.name,size:file.size}].slice(0, MAX_FILES)
-            })
-          }} />
-        </div>
+        {/* [2.5] 내보험 가져오기 — 운영 API 승인 후 NEXT_PUBLIC_CODEF_ENABLED=true 로 활성화 */}
+        {process.env.NEXT_PUBLIC_CODEF_ENABLED === 'true' && (
+          <div className="mb-4">
+            <CodefImportButton onImported={(file) => {
+              setFiles(prev => {
+                const exists = prev.some(f=>f.name===file.name)
+                if (exists) return prev
+                return [...prev,{file,name:file.name,size:file.size}].slice(0, MAX_FILES)
+              })
+            }} />
+          </div>
+        )}
 
         {/* [3] 업로드 */}
         <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
