@@ -112,8 +112,6 @@ export async function POST(req: NextRequest) {
           update: { credit4uId, credit4uPw },
         })
 
-        const identity  = rsaEncrypt(`${ssnFront}${ssnBack}`)
-        const birthDate = computeBirthDate(ssnFront, ssnBack[0])
         const result2   = await fetchInsuranceList({
           userName: userName.trim(), identity, birthDate,
           id: credit4uId, password: credit4uPw,
