@@ -69,14 +69,13 @@ export async function POST(req: NextRequest) {
           console.log(`[step2] continue2Way=true / method=${nextMethod}`)
 
           // 사용자 SMS 입력 필요 → 프론트엔드로 반환
+          const rd = regResult.data as { jobIndex: number; threadIndex: number; jti: string; twoWayTimestamp: number }
           if (nextMethod === 'smsAuthNo') {
             return NextResponse.json({
               requiresTwoWay: true, isRegister: true,
               twoWayInfo: {
-                jobIndex:        regResult.data.jobIndex,
-                threadIndex:     regResult.data.threadIndex,
-                jti:             regResult.data.jti,
-                twoWayTimestamp: regResult.data.twoWayTimestamp,
+                jobIndex: rd.jobIndex, threadIndex: rd.threadIndex,
+                jti: rd.jti, twoWayTimestamp: rd.twoWayTimestamp,
                 credit4uId, credit4uPw, phoneNo, telecom,
               },
             })
@@ -84,10 +83,8 @@ export async function POST(req: NextRequest) {
 
           // 그 외 method → 자동으로 다음 2차 요청 진행
           twoWayData = {
-            jobIndex:        regResult.data.jobIndex,
-            threadIndex:     regResult.data.threadIndex,
-            jti:             regResult.data.jti,
-            twoWayTimestamp: regResult.data.twoWayTimestamp,
+            jobIndex: rd.jobIndex, threadIndex: rd.threadIndex,
+            jti: rd.jti, twoWayTimestamp: rd.twoWayTimestamp,
           }
           continue
         }
@@ -153,14 +150,13 @@ export async function POST(req: NextRequest) {
         const nextMethod = result.data?.method as string | undefined
         console.log(`[step2] continue2Way=true / method=${nextMethod}`)
 
+        const rd2 = result.data as { jobIndex: number; threadIndex: number; jti: string; twoWayTimestamp: number }
         if (nextMethod === 'smsAuthNo') {
           return NextResponse.json({
             requiresTwoWay: true, isRegister: false,
             twoWayInfo: {
-              jobIndex:        result.data.jobIndex,
-              threadIndex:     result.data.threadIndex,
-              jti:             result.data.jti,
-              twoWayTimestamp: result.data.twoWayTimestamp,
+              jobIndex: rd2.jobIndex, threadIndex: rd2.threadIndex,
+              jti: rd2.jti, twoWayTimestamp: rd2.twoWayTimestamp,
               credit4uId, credit4uPw,
             },
           })
@@ -168,10 +164,8 @@ export async function POST(req: NextRequest) {
 
         // 자동으로 다음 2차 요청 진행
         twoWayData = {
-          jobIndex:        result.data.jobIndex,
-          threadIndex:     result.data.threadIndex,
-          jti:             result.data.jti,
-          twoWayTimestamp: result.data.twoWayTimestamp,
+          jobIndex: rd2.jobIndex, threadIndex: rd2.threadIndex,
+          jti: rd2.jti, twoWayTimestamp: rd2.twoWayTimestamp,
         }
         continue
       }
