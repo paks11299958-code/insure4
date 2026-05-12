@@ -1,88 +1,266 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
+import { prisma } from '@/lib/prisma'
+import {
+  rsaEncrypt,
+  fetchInsuranceList,
+  registerCredit4u,
+  formatInsuranceData,
+  computeBirthDate,
+  hashSsn,
+  generateCredit4uId,
+  generateCredit4uPw,
+  TWO_WAY_CODE,
+  TwoWayAuthData,
+} from '@/lib/codef'
 
-/**
- * POST /api/codef/import
- *
- * 코드에프 API를 통해 내보험 조회 후 PDF로 반환
- *
- * [연동 준비 사항]
- * 1. 코드에프 가입 후 CLIENT_ID, CLIENT_SECRET 발급
- * 2. .env.local에 추가:
- *    CODEF_CLIENT_ID=your_client_id
- *    CODEF_CLIENT_SECRET=your_client_secret
- *    CODEF_PUBLIC_KEY=your_rsa_public_key
- * 3. npm install codef-api-v2 (또는 직접 HTTP 호출)
- * 4. 아래 TODO 주석 구간을 실제 코드에프 API 호출로 교체
- */
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? 'secret')
+
 export async function POST(req: NextRequest) {
   try {
-    const { ssnFront, ssnBack } = await req.json()
-
-    if (!ssnFront || !ssnBack) {
-      return NextResponse.json({ error: '주민등록번호를 입력해 주세요.' }, { status: 400 })
-    }
-    if (ssnFront.length !== 6 || ssnBack.length !== 7) {
-      return NextResponse.json({ error: '주민등록번호 형식이 올바르지 않습니다.' }, { status: 400 })
+    // ── 1. 로그인 사용자 확인 (선택) ──
+    const cookie = req.cookies.get('token')?.value
+    if (cookie) {
+      try { await jwtVerify(cookie, JWT_SECRET) } catch { /* 비로그인 허용 */ }
     }
 
-    // ── TODO: 코드에프 API 연동 시작 ──────────────────────────────
-    //
-    // [Step 1] 코드에프 액세스 토큰 발급
-    // const tokenRes = await fetch('https://oauth.codef.io/oauth/token', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    //   body: new URLSearchParams({
-    //     grant_type: 'client_credentials',
-    //     client_id: process.env.CODEF_CLIENT_ID!,
-    //     client_secret: process.env.CODEF_CLIENT_SECRET!,
-    //   }),
-    // })
-    // const { access_token } = await tokenRes.json()
-    //
-    // [Step 2] 주민번호 RSA 암호화 (코드에프 공개키 사용)
-    // const crypto = require('crypto')
-    // const publicKey = Buffer.from(process.env.CODEF_PUBLIC_KEY!, 'base64').toString()
-    // const encryptedSsn = crypto.publicEncrypt(
-    //   { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
-    //   Buffer.from(`${ssnFront}${ssnBack}`)
-    // ).toString('base64')
-    //
-    // [Step 3] 내보험 조회 API 호출 (금융결제원 - 내보험다보여)
-    // const apiRes = await fetch('https://api.codef.io/v1/kr/insurance/public/p/myins/list', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     Authorization: `Bearer ${access_token}`,
-    //   },
-    //   body: JSON.stringify({
-    //     organization: '0000',   // 전체 보험사
-    //     loginType: '0',         // 인증서 로그인
-    //     id: encryptedSsn,
-    //   }),
-    // })
-    // const insuranceData = await apiRes.json()
-    //
-    // [Step 4] 조회 결과를 PDF로 변환
-    // (예: puppeteer, jsPDF, pdfkit 등 사용)
-    // const pdfBuffer = await generatePdf(insuranceData)
-    //
-    // return new NextResponse(pdfBuffer, {
-    //   headers: {
-    //     'Content-Type': 'application/pdf',
-    //     'Content-Disposition': 'attachment; filename="my-insurance.pdf"',
-    //   },
-    // })
-    //
-    // ── TODO 끝 ───────────────────────────────────────────────────
+    // ── 2. 요청 파라미터 파싱 ──
+    const body = await req.json() as {
+      userName:    string
+      ssnFront:    string
+      ssnBack:     string
+      phoneNo?:    string
+      telecom?:    string
+      twoWayData?: TwoWayAuthData & { credit4uId?: string; credit4uPw?: string; phoneNo?: string; telecom?: string; isRegister?: boolean }
+    }
+    const { userName, ssnFront, ssnBack, phoneNo, telecom, twoWayData } = body
 
-    // 연동 전 임시 응답 (개발/테스트용)
-    return NextResponse.json(
-      { error: '코드에프 API 연동이 아직 설정되지 않았습니다. .env.local에 CODEF_CLIENT_ID, CODEF_CLIENT_SECRET, CODEF_PUBLIC_KEY를 설정해 주세요.' },
-      { status: 501 }
-    )
+    if (!twoWayData) {
+      if (!userName?.trim())
+        return NextResponse.json({ error: '이름을 입력해 주세요.' }, { status: 400 })
+      if (!ssnFront || ssnFront.length !== 6)
+        return NextResponse.json({ error: '주민등록번호 앞 6자리를 확인해 주세요.' }, { status: 400 })
+      if (!ssnBack || ssnBack.length !== 7)
+        return NextResponse.json({ error: '주민등록번호 뒤 7자리를 확인해 주세요.' }, { status: 400 })
+    }
+
+    // ── 3. 2차 요청 (SMS 인증) ──
+    if (twoWayData) {
+      const { credit4uId, credit4uPw, phoneNo: tw_phone, telecom: tw_telecom, isRegister, ...twoWayInfo } = twoWayData
+
+      // 2차 요청 수신값 로그
+      const kstNow = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+      console.log('[codef/import] 2차 요청 수신 (KST):', kstNow)
+      console.log('[codef/import] 수신된 smsAuthNo:', twoWayInfo.smsAuthNo)
+      console.log('[codef/import] 수신된 twoWayTimestamp:', twoWayInfo.twoWayTimestamp,
+        '→ KST:', new Date(twoWayInfo.twoWayTimestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }))
+      console.log('[codef/import] isRegister:', isRegister)
+
+      // 회원가입 2차 인증
+      if (isRegister) {
+        const newId = credit4uId!
+        const newPw = credit4uPw!
+        console.log('[codef/import] 회원가입 2차 전송 → smsAuthNo:', twoWayInfo.smsAuthNo, '/ jti:', twoWayInfo.jti)
+        const regResult = await registerCredit4u({
+          id: newId, password: newPw,
+          identity: '', userName: userName?.trim() ?? '',
+          phoneNo: tw_phone ?? '', telecom: tw_telecom ?? '',
+          birthDate: '', twoWayData: twoWayInfo,
+        })
+        console.log('[codef/import] 회원가입 2차 응답:', JSON.stringify(regResult, null, 2))
+
+        const contType = regResult.data?.continue2Way as boolean | undefined
+        if (regResult.result.code === TWO_WAY_CODE && contType) {
+          return NextResponse.json({
+            requiresTwoWay: true, isRegister: true,
+            twoWayInfo: { ...regResult.data, credit4uId: newId, credit4uPw: newPw, phoneNo: tw_phone, telecom: tw_telecom },
+          })
+        }
+        if (regResult.result.code !== '0000') {
+          const msg = regResult.result.code === 'CF-01004'
+            ? 'SMS 인증 시간이 초과되었습니다. 다시 시도해 주세요.'
+            : decodeURIComponent(regResult.result.message ?? '회원가입 인증 실패')
+          return NextResponse.json({ error: msg, code: regResult.result.code, timeout: regResult.result.code === 'CF-01004' }, { status: 502 })
+        }
+        // 회원가입 완료 → DB 저장 후 계약조회로 진행
+        const ssnHash2 = hashSsn(ssnFront, ssnBack)
+        await prisma.credit4uAccount.upsert({
+          where: { ssnHash: ssnHash2 },
+          create: { ssnHash: ssnHash2, credit4uId: newId, credit4uPw: newPw },
+          update: { credit4uId: newId, credit4uPw: newPw },
+        })
+        const identity2 = rsaEncrypt(`${ssnFront}${ssnBack}`)
+        const birthDate2 = computeBirthDate(ssnFront, ssnBack[0])
+        const result2 = await fetchInsuranceList({ userName: userName.trim(), identity: identity2, birthDate: birthDate2, id: newId, password: newPw })
+        console.log('[codef/import] 계약조회(가입후):', JSON.stringify(result2, null, 2))
+        if (result2.result.code !== '0000') {
+          return NextResponse.json({ error: decodeURIComponent(result2.result.message ?? '조회 실패'), code: result2.result.code }, { status: 502 })
+        }
+        const text2 = formatInsuranceData(result2.data, userName.trim())
+        return NextResponse.json({ text: text2, fileName: `내보험_${userName.trim()}_${new Date().toISOString().slice(0, 10)}.txt` })
+      }
+
+      // 계약조회 2차 인증
+      console.log('[codef/import] 계약조회 2차 전송 → smsAuthNo:', twoWayInfo.smsAuthNo, '/ jti:', twoWayInfo.jti)
+      const result = await fetchInsuranceList({
+        userName: userName?.trim() ?? '',
+        identity: '',
+        birthDate: '',
+        id:       credit4uId ?? '',
+        password: credit4uPw ?? '',
+        twoWayData: twoWayInfo,
+      })
+
+      console.log('[codef/import] 2차 응답:', JSON.stringify(result, null, 2))
+
+      const continue2Way = result.data?.continue2Way as boolean | undefined
+      if (result.result.code === TWO_WAY_CODE && continue2Way) {
+        return NextResponse.json({
+          requiresTwoWay: true,
+          twoWayInfo: {
+            jobIndex:        result.data.jobIndex,
+            threadIndex:     result.data.threadIndex,
+            jti:             result.data.jti,
+            twoWayTimestamp: result.data.twoWayTimestamp,
+            credit4uId,
+            credit4uPw,
+          },
+          extraInfo: result.data.extraInfo ?? {},
+          method:    result.data.method,
+        })
+      }
+
+      if (result.result.code !== '0000') {
+        const msg = result.result.code === 'CF-01004'
+          ? 'SMS 인증 시간이 초과되었습니다. 다시 시도해 주세요.'
+          : decodeURIComponent(result.result.message ?? '인증에 실패했습니다.')
+        return NextResponse.json(
+          { error: msg, code: result.result.code, timeout: result.result.code === 'CF-01004' },
+          { status: 502 },
+        )
+      }
+
+      const text     = formatInsuranceData(result.data, userName?.trim() ?? '')
+      const fileName = `내보험_${userName?.trim()}_${new Date().toISOString().slice(0, 10)}.txt`
+      return NextResponse.json({ text, fileName })
+    }
+
+    // ── 4. 1차 요청 — SSN 해시로 credit4u 계정 조회 ──
+    const ssnHash   = hashSsn(ssnFront, ssnBack)
+    const identity  = rsaEncrypt(`${ssnFront}${ssnBack}`)
+    const birthDate = computeBirthDate(ssnFront, ssnBack[0])
+
+    let account = await prisma.credit4uAccount.findUnique({ where: { ssnHash } })
+
+    // ── 5. 계정 없으면 자동 회원가입 ──
+    if (!account) {
+      if (!phoneNo?.trim())
+        return NextResponse.json({ error: '휴대폰 번호를 입력해 주세요.' }, { status: 400 })
+
+      const newId = generateCredit4uId()
+      const newPw = generateCredit4uPw()
+
+      console.log('[codef/import] credit4u 회원가입 시도:', newId)
+
+      const regResult = await registerCredit4u({
+        id:        newId,
+        password:  newPw,
+        identity,
+        userName:  userName.trim(),
+        phoneNo:   phoneNo.replace(/-/g, ''),
+        telecom:   telecom ?? '0',
+        birthDate,
+      })
+
+      console.log('[codef/import] 회원가입 응답:', JSON.stringify(regResult, null, 2))
+
+      // 회원가입 중 SMS 추가인증 필요
+      const regContinue = regResult.data?.continue2Way as boolean | undefined
+      if (regResult.result.code === TWO_WAY_CODE && regContinue) {
+        return NextResponse.json({
+          requiresTwoWay: true,
+          isRegister: true,
+          twoWayInfo: {
+            jobIndex:        regResult.data.jobIndex,
+            threadIndex:     regResult.data.threadIndex,
+            jti:             regResult.data.jti,
+            twoWayTimestamp: regResult.data.twoWayTimestamp,
+            credit4uId:      newId,
+            credit4uPw:      newPw,
+            phoneNo,
+            telecom,
+          },
+          extraInfo: regResult.data.extraInfo ?? {},
+          method:    regResult.data.method,
+        })
+      }
+
+      if (regResult.result.code !== '0000') {
+        return NextResponse.json(
+          { error: decodeURIComponent(regResult.result.message ?? '회원가입에 실패했습니다.'), code: regResult.result.code },
+          { status: 502 },
+        )
+      }
+
+      account = await prisma.credit4uAccount.create({
+        data: { ssnHash, credit4uId: newId, credit4uPw: newPw },
+      })
+    }
+
+    // ── 6. 계약정보 조회 ──
+    const result = await fetchInsuranceList({
+      userName: userName.trim(),
+      identity,
+      birthDate,
+      id:       account.credit4uId,
+      password: account.credit4uPw,
+    })
+
+    console.log('[codef/import] 1차 응답:', JSON.stringify(result, null, 2))
+
+    // ── 7. 추가인증 필요 분기 ──
+    const continue2Way = result.data?.continue2Way as boolean | undefined
+    if (result.result.code === TWO_WAY_CODE && continue2Way) {
+      return NextResponse.json({
+        requiresTwoWay: true,
+        twoWayInfo: {
+          jobIndex:        result.data.jobIndex,
+          threadIndex:     result.data.threadIndex,
+          jti:             result.data.jti,
+          twoWayTimestamp: result.data.twoWayTimestamp,
+          credit4uId:      account.credit4uId,
+          credit4uPw:      account.credit4uPw,
+        },
+        extraInfo: result.data.extraInfo ?? {},
+        method:    result.data.method,
+      })
+    }
+
+    // ── 8. 에러 분기 ──
+    if (result.result.code !== '0000') {
+      const msg = decodeURIComponent(result.result.message ?? '보험 조회에 실패했습니다.')
+      // credit4u 계정이 실제로 존재하지 않는 경우 → DB 캐시 삭제 후 다음 시도 시 재가입
+      if (msg.includes('회원가입')) {
+        await prisma.credit4uAccount.delete({ where: { ssnHash } })
+        return NextResponse.json(
+          { error: '보험 조회 계정이 만료되었습니다. 다시 한 번 시도해 주세요.', code: result.result.code },
+          { status: 502 },
+        )
+      }
+      return NextResponse.json(
+        { error: msg, code: result.result.code },
+        { status: 502 },
+      )
+    }
+
+    // ── 9. 성공 ──
+    const text     = formatInsuranceData(result.data, userName.trim())
+    const fileName = `내보험_${userName.trim()}_${new Date().toISOString().slice(0, 10)}.txt`
+    return NextResponse.json({ text, fileName })
 
   } catch (e) {
     console.error('[codef/import]', e)
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+    const msg = e instanceof Error ? e.message : '서버 오류가 발생했습니다.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

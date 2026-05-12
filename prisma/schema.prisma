@@ -34,3 +34,34 @@ model Analysis {
   result     Json?
   createdAt  DateTime @default(now())
 }
+
+model UserCodefInfo {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @unique
+  connectedId  String
+  lastSyncAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+}
+
+// credit4u 포털 계정 캐시 (SSN 해시 기준 1행 유지 — SSN 원문은 절대 저장 안 함)
+model Credit4uAccount {
+  id           Int      @id @default(autoincrement())
+  ssnHash      String   @unique   // SHA-256(ssnFront+ssnBack) — SSN 원문 미저장
+  credit4uId   String             // credit4u 포털 로그인 ID (자동 생성)
+  credit4uPw   String             // credit4u 포털 비밀번호 평문 (API 전송 시 RSA 암호화)
+  registeredAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 코드에프 OAuth 액세스 토큰 캐시 (client_id 단위로 1행 유지)
+model CodefToken {
+  id           Int       @id @default(autoincrement())
+  clientId     String    @unique          // CODEF_CLIENT_ID
+  accessToken  String                     // Bearer 토큰 원문
+  tokenType    String    @default("Bearer")
+  expiresIn    Int                        // 발급 시 expires_in (초)
+  issuedAt     DateTime                   // 토큰 발급 일시
+  expiresAt    DateTime                   // issuedAt + expiresIn
+  refreshToken String?                    // refresh_token (있는 경우)
+  updatedAt    DateTime  @updatedAt
+}
