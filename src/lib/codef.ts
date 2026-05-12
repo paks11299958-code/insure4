@@ -172,19 +172,9 @@ export async function registerCredit4u(params: {
 
   let requestParams: Record<string, unknown>
 
+  const email = params.email ?? `${params.id}@naver.com`
   if (params.twoWayData) {
     const { jobIndex, threadIndex, jti, twoWayTimestamp, smsAuthNo, secureNo, simpleAuth } = params.twoWayData
-    requestParams = {
-      organization: '0001',
-      is2Way:       true,
-      twoWayInfo:   { jobIndex, threadIndex, jti, twoWayTimestamp },
-      simpleAuth:   simpleAuth ?? '0',
-      ...(smsAuthNo ? { smsAuthNo } : {}),
-      ...(secureNo  ? { secureNo  } : {}),
-    }
-  } else {
-    // 이메일 미입력 시 ID 기반 더미 이메일 자동 생성
-    const email = params.email ?? `${params.id}@naver.com`
     requestParams = {
       organization:  '0001',
       id:            params.id,
@@ -196,7 +186,26 @@ export async function registerCredit4u(params: {
       telecom:       params.telecom,
       birthDate:     params.birthDate,
       email,
-      authMethod:    '0',   // SMS 인증
+      authMethod:    '0',
+      is2Way:        true,
+      twoWayInfo:    { jobIndex, threadIndex, jti, twoWayTimestamp },
+      simpleAuth:    simpleAuth ?? '0',
+      ...(smsAuthNo ? { smsAuthNo } : {}),
+      ...(secureNo  ? { secureNo  } : {}),
+    }
+  } else {
+    requestParams = {
+      organization:  '0001',
+      id:            params.id,
+      password:      rsaEncrypt(params.password),
+      identity:      params.identity,
+      identityEncYn: 'Y',
+      userName:      params.userName,
+      phoneNo:       params.phoneNo,
+      telecom:       params.telecom,
+      birthDate:     params.birthDate,
+      email,
+      authMethod:    '0',
     }
   }
 
@@ -225,18 +234,23 @@ export async function fetchInsuranceList(params: {
   let requestParams: Record<string, unknown>
 
   if (params.twoWayData) {
-    // 2차 요청 (추가인증)
     const { jobIndex, threadIndex, jti, twoWayTimestamp, smsAuthNo, secureNo, simpleAuth } = params.twoWayData
     requestParams = {
-      organization: '0001',
-      is2Way: true,
-      twoWayInfo: { jobIndex, threadIndex, jti, twoWayTimestamp },
-      simpleAuth: simpleAuth ?? '0',
+      organization:  '0001',
+      id:            params.id,
+      password:      rsaEncrypt(params.password),
+      type:          '0',
+      userName:      params.userName,
+      identity:      params.identity,
+      birthDate:     params.birthDate,
+      identityEncYn: 'Y',
+      is2Way:        true,
+      twoWayInfo:    { jobIndex, threadIndex, jti, twoWayTimestamp },
+      simpleAuth:    simpleAuth ?? '0',
       ...(smsAuthNo ? { smsAuthNo } : {}),
       ...(secureNo  ? { secureNo  } : {}),
     }
   } else {
-    // 1차 요청
     requestParams = {
       organization:  '0001',
       id:            params.id,
