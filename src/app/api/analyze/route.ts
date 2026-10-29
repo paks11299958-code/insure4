@@ -115,10 +115,15 @@ function parseJSON(raw: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// 2026-10-29: 폐기된 키·낡은 모델(claude-sonnet-4-20250514)로 "API 키 오류" 고장 → 현재 모델로 교체.
+// Sonnet 5.5는 생각(thinking)이 기본으로 켜져 있고 그 토큰도 max_tokens 에 포함되므로 하한을 넉넉히 둔다.
+const CLAUDE_MODEL = 'claude-sonnet-5-5'
+const MIN_MAX_TOKENS = 16000
+
 async function callClaude(messages: any[], system: string, maxTokens = 4096) {
   return client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: maxTokens,
+    model: CLAUDE_MODEL,
+    max_tokens: Math.max(maxTokens, MIN_MAX_TOKENS),
     system,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: messages as any,

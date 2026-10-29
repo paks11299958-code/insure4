@@ -65,5 +65,5 @@ API 키 발급: [console.anthropic.com/settings/keys](https://console.anthropic.
 ## 기술 스택
 
 - **Next.js 14** (App Router)
-- **Claude claude-sonnet-4-20250514** (PDF Vision + 중복 분석)
+- **Claude claude-sonnet-5-5** (PDF Vision + 중복 분석, 2026-10-29 교체)
 - **Vercel** (배포)
